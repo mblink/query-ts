@@ -1,7 +1,7 @@
 import { UrlInterface } from "./urlInterface";
 import { Bondlink } from "../../sites/assets/scripts/bondlink";
 import { Newtype, iso, prism } from "newtype-ts";
-import { Prism } from "monocle-ts";
+import { Prism, Iso } from "monocle-ts";
 
 export interface RouteInterface {
   method: string;
@@ -33,14 +33,16 @@ export abstract class Router {
 
 
 interface RelativePath extends Newtype<{ readonly RelativePath: unique symbol }, string> {}
-
 const isRelativePath = (s: string) => s.charAt(0) === "/";
 
-export const relativePathPrism: Prism<string, RelativePath> = prism<RelativePath>(isRelativePath);
-// const rpO = relativePathPrism.getOption("foo");
-
-export const relativePathIso = iso<RelativePath>();
+/**
+ * Example of potential usage when dealing with an unknown value
+ *
+ * const rpO = rpPrism.getOption("foo");
+ */
+export const rpPrism: Prism<string, RelativePath> = prism<RelativePath>(isRelativePath);
+export const rpIso: Iso<RelativePath, string> = iso<RelativePath>();
 
 export function relPathToUrl(rp: RelativePath): (origin?: string | URL) => URL {
-  return (origin?: string | URL) => new URL(relativePathIso.unwrap(rp), origin ? origin : new URL(Bondlink.currentOrigin));
+  return (origin?: string | URL) => new URL(rpIso.unwrap(rp), origin ? origin : new URL(Bondlink.currentOrigin));
 }
