@@ -1,0 +1,25 @@
+// tslint:disable no-unsafe-any
+
+export const invoke0 = <K extends PropertyKey>(functionName: K) => <A extends Record<K, () => any>>(a: A): ReturnType<A[K]> => a[functionName]();
+export const invoke1 = <K extends PropertyKey>(functionName: K) => <I1>(i1: I1) => <A extends Record<K, (i1: I1) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1);
+export const invoke2 = <K extends PropertyKey>(functionName: K) => <I1, I2>(i1: I1, i2: I2) => <A extends Record<K, (i1: I1, i2: I2) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2);
+export const invoke3 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3>(i1: I1, i2: I2, i3: I3) => <A extends Record<K, (i1: I1, i2: I2, i3: I3) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3);
+export const invoke4 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4>(i1: I1, i2: I2, i3: I3, i4: I4) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4);
+export const invoke5 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4, I5>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4, i5);
+export const invoke6 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4, I5, I6>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4, i5, i6);
+export const invoke7 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4, I5, I6, I7>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4, i5, i6, i7);
+export const invoke8 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4, I5, I6, I7, I8>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4, i5, i6, i7, i8);
+export const invoke9 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4, I5, I6, I7, I8, I9>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4, i5, i6, i7, i8, i9);
+export const invoke10 = <K extends PropertyKey>(functionName: K) => <I1, I2, I3, I4, I5, I6, I7, I8, I9, I10>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9, i10: I10) => <A extends Record<K, (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9, i10: I10) => any>>(a: A): ReturnType<A[K]> => a[functionName](i1, i2, i3, i4, i5, i6, i7, i8, i9, i10);
+
+export const invokeSelf0 = <A extends () => any>(a: A): ReturnType<A> => a();
+export const invokeSelf1 = <I1>(i1: I1) => <A extends (i1: I1) => any>(a: A): ReturnType<A> => a(i1);
+export const invokeSelf2 = <I1, I2>(i1: I1, i2: I2) => <A extends (i1: I1, i2: I2) => any>(a: A): ReturnType<A> => a(i1, i2);
+export const invokeSelf3 = <I1, I2, I3>(i1: I1, i2: I2, i3: I3) => <A extends (i1: I1, i2: I2, i3: I3) => any>(a: A): ReturnType<A> => a(i1, i2, i3);
+export const invokeSelf4 = <I1, I2, I3, I4>(i1: I1, i2: I2, i3: I3, i4: I4) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4);
+export const invokeSelf5 = <I1, I2, I3, I4, I5>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4, i5);
+export const invokeSelf6 = <I1, I2, I3, I4, I5, I6>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4, i5, i6);
+export const invokeSelf7 = <I1, I2, I3, I4, I5, I6, I7>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4, i5, i6, i7);
+export const invokeSelf8 = <I1, I2, I3, I4, I5, I6, I7, I8>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4, i5, i6, i7, i8);
+export const invokeSelf9 = <I1, I2, I3, I4, I5, I6, I7, I8, I9>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4, i5, i6, i7, i8, i9);
+export const invokeSelf10 = <I1, I2, I3, I4, I5, I6, I7, I8, I9, I10>(i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9, i10: I10) => <A extends (i1: I1, i2: I2, i3: I3, i4: I4, i5: I5, i6: I6, i7: I7, i8: I8, i9: I9, i10: I10) => any>(a: A): ReturnType<A> => a(i1, i2, i3, i4, i5, i6, i7, i8, i9, i10);
