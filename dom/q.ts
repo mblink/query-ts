@@ -5,6 +5,7 @@ import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Fil
 import { apply, identity, pipe } from "fp-ts/lib/function";
 import { HKT, Type, Type2, Type3, URIS, URIS2, URIS3 } from "fp-ts/lib/HKT";
 import { fromNullable, none, Option, some, tryCatch as tryCatchO } from "fp-ts/lib/Option";
+import { Setoid } from "fp-ts/lib/Setoid";
 import { TaskEither, taskEither, tryCatch as tryCatchTE } from "fp-ts/lib/TaskEither";
 import { TSMap } from "typescript-map";
 import xs, { Listener, Producer, Stream } from "xstream";
@@ -287,6 +288,8 @@ class QListeners {
  */
 @autobind
 export class Q<E extends QElement = QElement> extends AttrProxy<E> {
+  static readonly setoid: Setoid<Q<any>> = { equals: (q1: Q<any>, q2: Q<any>): boolean => q1.equals(q2) };
+
   static readonly inputSelector = "input, select, textarea, *[contenteditable]";
   static readonly focusableSelector = `a[href], area[href], ${Q.inputSelector}, button, iframe, object, embed, *[tabindex]`;
 
