@@ -32,5 +32,9 @@ export function pathO<K extends PK, A>(ks: K[]): (a: A) => Option<any> {
     reduced.chain((r: R<K, any>) => lookup(k.toString(), r)), some(a));
 }
 
-export const mkDeepObj = (ks: string[], v: any): { [k: string]: any } =>
-  ({ [ks[0]]: ks.length === 1 ? v : mkDeepObj(ks.slice(1), v) });
+export function mkDeepObj(ks: string[]): (v: any) => Record<string, any>;
+export function mkDeepObj(ks: string[], v: any): Record<string, any>;
+export function mkDeepObj(_ks: string[], vo?: any): Record<string, any> | ((v: any) => Record<string, any>) {
+  const go = (ks: string[], v: any): Record<string, any> => ({ [ks[0]]: ks.length === 1 ? v : go(ks.slice(1), v) });
+  return arguments.length === 1 ? (v: any) => go(_ks, v) : go(_ks, vo);
+}

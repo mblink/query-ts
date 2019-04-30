@@ -778,6 +778,14 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     return Q.filtered(selector)(this.parent().fold([], (p: Q) => p.children().filter((e: Q) => e.element !== this.element)));
   }
 
+  prevSibling(): Option<Q> {
+    return this.getSibling(prop("previousSibling"))(this.element);
+  }
+
+  nextSibling(): Option<Q> {
+    return this.getSibling(prop("nextSibling"))(this.element);
+  }
+
   /**
    * Clone the current element, including children
    */
@@ -1047,5 +1055,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     this.element.insertAdjacentElement(position, other.element);
     CachedElements.addCachedElements(other);
     return this;
+  }
+
+  private getSibling(fn: (n: Node) => Node | null): (node: Node) => Option<Q> {
+    return (node: Node) => fromNullable(fn(node)).chain((n: Node) => Q.nodeIsElement(n) ? some(Q.of(n)) : this.getSibling(fn)(n));
   }
 }
