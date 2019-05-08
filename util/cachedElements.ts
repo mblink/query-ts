@@ -1,35 +1,41 @@
 import autobind from "autobind-decorator";
-import { apply } from "fp-ts/lib/function";
+import { apply, curry, pipe } from "fp-ts/lib/function";
+import { getTraversableWithIndex, insert, map, remove } from "fp-ts/lib/Map";
 import { fromNullable, Option, some } from "fp-ts/lib/Option";
-import { TSMap } from "typescript-map";
+import { setoidString } from "fp-ts/lib/Setoid";
 import { Q, QElement } from "../dom/q";
+import { eqOrd, eqSetoid } from "./instances";
 import { invoke1 } from "./invoke";
-import { map } from "fp-ts/lib/Record";
+import { tap } from "./tap";
 
 interface HasElement<E extends QElement = QElement> {
   getElement(): Q<E>;
   setElement(e: Q<E>): void;
 }
 
+const qElSetoid = eqSetoid<QElement>();
+
 @autobind
 export class CachedElements<E extends QElement = QElement, A extends HasElement<E> = HasElement<E>> {
-  static readonly allCaches: { [name: string]: CachedElements } = {};
-
+  private static _allCaches: Map<string, CachedElements> = new Map();
   readonly name: string;
   readonly ctor: new (element: Q<E>) => A;
   readonly selector: string;
-  readonly cache: TSMap<QElement, A> = new TSMap();
+  private _cache: Map<QElement, A> = new Map();
 
-  static modifyCachedElements(other: Q, f: (cache: CachedElements, oldEl: Q, newEl: Q, value: HasElement) => void): void {
-    map(CachedElements.allCaches, (cache: CachedElements) =>
-      cache.cache.forEach((value: HasElement, eo?: QElement) => fromNullable(eo).map((oldEl: QElement) =>
+  static get allCaches(): Map<string, CachedElements> { return CachedElements._allCaches; }
+
+  static modifyCachedElements(other: Q, f: (cache: Map<QElement, HasElement>, oldEl: Q, newEl: Q, value: HasElement) => Map<QElement, HasElement>): void {
+    const mapI = getTraversableWithIndex(eqOrd<QElement>());
+    map.map(CachedElements.allCaches, (cache: CachedElements) =>
+      mapI.reduceWithIndex(cache.cache, cache.cache, (oldEl: QElement, acc: Map<QElement, HasElement>, value: HasElement) =>
         some(other).filter(invoke1("matches")(CachedElements.elementIdSelector(oldEl)))
           .orElse(() => other.one(CachedElements.elementIdSelector(oldEl)))
-          .map((newEl: Q) => f(cache, Q.of(oldEl), newEl, value)))));
+          .fold(acc, (newEl: Q) => f(acc, Q.of(oldEl), newEl, value))));
   }
 
   static addCachedElements(added: Q): void {
-    map(CachedElements.allCaches, (cache: CachedElements) => {
+    map.map(CachedElements.allCaches, (cache: CachedElements) => {
       cache.maybeCacheElement(added);
       cache.cacheElementsIn(added);
     });
@@ -37,15 +43,14 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
 
   static removeCachedElements(removed: Q): void {
     CachedElements.modifyCachedElements(removed,
-      (cache: CachedElements<QElement, any>, oldEl: Q, _n: Q, _v: HasElement) => cache.cache.delete(oldEl.element));
+      (cache: Map<QElement, HasElement>, oldEl: Q, _n: Q) => remove(qElSetoid)(oldEl.element, cache));
   }
 
   static replaceCachedElements(replacement: Q): void {
-    CachedElements.modifyCachedElements(replacement, (cache: CachedElements<QElement, any>, oldEl: Q, newEl: Q, value: HasElement) => {
-      cache.cache.delete(oldEl.element);
-      cache.cache.set(newEl.element, value);
-      value.setElement(newEl);
-    });
+    CachedElements.modifyCachedElements(replacement, (cache: Map<QElement, HasElement>, oldEl: Q, newEl: Q, value: HasElement) => pipe(
+      curry<QElement, Map<QElement, HasElement>, Map<QElement, HasElement>>(remove(qElSetoid))(oldEl.element),
+      curry<QElement, HasElement, Map < QElement, HasElement>, Map<QElement, HasElement>>(insert(qElSetoid))(newEl.element)(value),
+      tap(() => value.setElement(newEl)))(cache));
   }
 
   static normalizeId(id: string): string {
@@ -60,16 +65,22 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
     return `#${CachedElements.elementId(el)}`;
   }
 
+  private static addCache(name: string, cache: CachedElements): void {
+    CachedElements._allCaches = insert(setoidString)(name, cache, CachedElements.allCaches);
+  }
+
   constructor(name: string, selector: string, ctor: new (element: Q<E>) => A) {
     this.name = name;
     this.ctor = ctor;
     this.selector = selector;
 
-    CachedElements.allCaches[name] = (<CachedElements>(<unknown>this));
+    CachedElements.addCache(name, <CachedElements>(<unknown>this));
   }
 
+  get cache(): Map<QElement, A> { return this._cache; }
+
   cacheElement(e: Q<E>): void {
-    apply((a: A) => this.cache.set(a.getElement().element, a))(new this.ctor(e));
+    apply((a: A) => this._cache = insert(qElSetoid)(a.getElement().element, a, this.cache))(new this.ctor(e));
   }
 
   maybeCacheElement(e: Q<E>): void {
@@ -91,4 +102,4 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
 }
 
 // For debugging - TODO - remove when we go live?
-(<any>window).cachedElements = CachedElements.allCaches;
+(<any>window).CachedElements = CachedElements;
