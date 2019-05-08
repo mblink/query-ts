@@ -168,7 +168,7 @@ type MkQ = <E2 extends QElement>(e: E2) => Q<E2>;
 /**
  * A helper class to handle binding and removing event listeners
  */
-class QListeners {
+export class QListeners {
   private static readonly rootCache: RootCache = new IORef(new Map());
   private static readonly delegateCache: DelegateCache = new IORef(new Map());
 
