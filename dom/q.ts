@@ -1,17 +1,20 @@
 import autobind from "autobind-decorator";
 import { Do } from "fp-ts-contrib/lib/Do";
-import { flatten, mapOption } from "fp-ts/lib/Array";
+import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
-import { apply, identity, pipe, tupleCurried } from "fp-ts/lib/function";
+import { apply, constVoid, identity, not, pipe } from "fp-ts/lib/function";
 import { HKT, Type, Type2, Type3, URIS, URIS2, URIS3 } from "fp-ts/lib/HKT";
+import { IORef } from "fp-ts/lib/IORef";
+import { insert, lookup, toArray } from "fp-ts/lib/Map";
 import { fromNullable, none, Option, some, tryCatch as tryCatchO } from "fp-ts/lib/Option";
 import { Setoid } from "fp-ts/lib/Setoid";
 import { TaskEither, taskEither, tryCatch as tryCatchTE } from "fp-ts/lib/TaskEither";
-import { TSMap } from "typescript-map";
 import xs, { Listener, Producer, Stream } from "xstream";
 import { Bondlink } from "../bondlink";
 import { AttrProxy } from "../util/attrProxy";
 import { CachedElements } from "../util/cachedElements";
+import { eq } from "../util/eq";
+import { eqOrd, eqSetoid } from "../util/instances";
 import * as invoke from "../util/invoke";
 import { Log } from "../util/log";
 import { parseNumber } from "../util/parseNumber";
@@ -128,6 +131,8 @@ export type QCustomListener<
   TE extends QElement = QElement
 > = (event: QCustomEvent<SE, TE>) => void;
 
+type StreamAndListeners<A> = [Stream<A>, Listener<A>[]];
+
 /**
  * Create an xstream Producer to handle adding and removing event listeners
  */
@@ -142,19 +147,20 @@ const qListenerProducer = <Ev extends Event>(element: QElement, eventName: strin
   };
 };
 
-const addQListener = (element: QElement, eventName: string, uc: boolean) => <Ev extends Event>(next: (e: Ev) => void) => (streamO: Option<Stream<unknown>>): [Stream<Ev>, Listener<Ev>] => {
-  const stream = (<Option<Stream<Ev>>>streamO).getOrElse(xs.create(qListenerProducer(element, eventName, uc)));
+const addQListener = (element: QElement, eventName: string, uc: boolean) => <Ev extends Event>(next: (e: Ev) => void) => (streamO: Option<StreamAndListeners<unknown>>): [Stream<Ev>, Listener<Ev>, Listener<Ev>[]] => {
+  const [stream, listeners] = (<Option<StreamAndListeners<Ev>>>streamO)
+    .getOrElse([xs.create(qListenerProducer(element, eventName, uc)), []]);
   const listener: Listener<Ev> = {
     next,
     error: (e: any) => Log.error(`Error occurred in ${eventName} event stream`, e),
     complete: () => Log.info(`Stream completed for ${eventName} event`)
   };
   stream.addListener(listener);
-  return [stream, listener];
+  return [stream, listener, listeners.concat([listener])];
 };
 
-type RootCache = TSMap<QElement, TSMap<string, Stream<unknown>>>;
-type DelegateCache = TSMap<QElement, TSMap<string, TSMap<string, Stream<unknown>>>>;
+type RootCache = IORef<Map<QElement, Map<string, Stream<unknown>>>>;
+type DelegateCache = IORef<Map<QElement, Map<string, Map<string, Stream<unknown>>>>>;
 
 type QEvCtor = new <Ev extends Event, SE extends QElement, TE extends QElement>(e: Ev, se: Q<SE>, te: Q<TE>, oe: Option<Q>) => QBaseEvent<Ev, SE, TE>;
 type MkQ = <E2 extends QElement>(e: E2) => Q<E2>;
@@ -163,8 +169,8 @@ type MkQ = <E2 extends QElement>(e: E2) => Q<E2>;
  * A helper class to handle binding and removing event listeners
  */
 class QListeners {
-  private static readonly rootCache: RootCache = new TSMap();
-  private static readonly delegateCache: DelegateCache = new TSMap();
+  private static readonly rootCache: RootCache = new IORef(new Map());
+  private static readonly delegateCache: DelegateCache = new IORef(new Map());
 
   /**
    * Add an event listener to a given element
@@ -177,7 +183,7 @@ class QListeners {
     selectorOrListener: string | ((e: QEv1) => void),
     listener?: (e: QEv2) => void
   ): [Stream<Ev>, Listener<Ev>] {
-    const [cache, ks, next]: [TSMap<any, any>, any[], (e: Ev) => void] = typeof selectorOrListener === "string"
+    const [cache, ks, next]: [IORef<Map<any, any>>, any[], (e: Ev) => void] = typeof selectorOrListener === "string"
       ? [
         QListeners.delegateCache,
         [element.element, eventName, selectorOrListener],
@@ -193,9 +199,9 @@ class QListeners {
           new ctor(e, t, t, QListeners.originationElement(e, mkQ)))))(QListeners.thisElement(e, mkQ, element))
       ];
 
-    const [stream, addedListener] = addQListener(element.element, eventName,
+    const [stream, addedListener, allListeners] = addQListener(element.element, eventName,
       typeof selectorOrListener === "string")(next)(QListeners.getStream(cache, <any>ks));
-    QListeners.setStream(cache, <any>ks, stream);
+    QListeners.setStream(cache, <any>ks, [stream, allListeners]);
     return [stream, addedListener];
   }
 
@@ -230,12 +236,7 @@ class QListeners {
     fromNullable(selector).foldL(
       () => {
         QListeners.stopStream(QListeners.rootCache, [element.element, eventName], listener);
-        const delegateStreams = QListeners.getStream(QListeners.delegateCache, [element.element, eventName]).getOrElse(new TSMap());
-        const delegateKvs = mapOption(delegateStreams.keys(), (k: string) => fromNullable(delegateStreams.get(k)).map(tupleCurried(k)));
-        delegateKvs.forEach(([s, stream]: [string, Stream<any>]) => {
-          QListeners._stopStream(delegateStreams, s, stream, listener);
-          QListeners.stopStream(QListeners.delegateCache, [element.element, eventName, s], listener);
-        });
+        QListeners.stopStream(QListeners.delegateCache, [element.element, eventName], listener);
       },
       (s: string) => QListeners.stopStream(QListeners.delegateCache, [element.element, eventName, s], listener)
     );
@@ -249,56 +250,61 @@ class QListeners {
     return fromNullable(<QElement>event.target).map(mkQ);
   }
 
-  private static isTSMap(u: unknown): u is TSMap<any, unknown> {
-    return u instanceof TSMap;
+  private static isMap(u: unknown): u is Map<unknown, unknown> {
+    return u instanceof Map;
   }
 
-  private static getStream(m: RootCache, ks: [QElement, string]): Option<Stream<unknown>>;
-  private static getStream(m: DelegateCache, ks: [QElement, string]): Option<TSMap<string, Stream<unknown>>>;
-  private static getStream(m: DelegateCache, ks: [QElement, string, string]): Option<Stream<unknown>>;
-  private static getStream(m: TSMap<any, unknown>, ks: any[]): Option<unknown> { return fromNullable(m.deepGet(ks)); }
+  private static getStream(m: RootCache, ks: [QElement, string]): Option<StreamAndListeners<unknown>>;
+  private static getStream(m: DelegateCache, ks: [QElement, string]): Option<Map<string, StreamAndListeners<unknown>>>;
+  private static getStream(m: DelegateCache, ks: [QElement, string, string]): Option<StreamAndListeners<unknown>>;
+  private static getStream(_m: IORef<Map<unknown, unknown>>, _ks: unknown[]): Option<unknown> {
+    const go = (ks: unknown[]) => (m: Map<any, any>): Option<unknown> =>
+      ks.length === 0 ? some(m) : lookup(eqSetoid<unknown>())(ks[0], m).chain(go(ks.slice(1)));
 
-  private static setStream(m: RootCache, ks: [QElement, string], v: Stream<any>): RootCache;
-  private static setStream(m: DelegateCache, ks: [QElement, string, string], v: Stream<any>): DelegateCache;
-  private static setStream(_m: TSMap<any, unknown>, _ks: any[], _v: Stream<any>): TSMap<any, unknown> {
-    const rec = (m: TSMap<any, unknown>, ks: any[], v: Stream<any>): TSMap<any, unknown> => {
+    return _m.read.map(go(_ks)).run();
+  }
+
+  private static setStream(m: RootCache, ks: [QElement, string], v: StreamAndListeners<any>): void;
+  private static setStream(m: DelegateCache, ks: [QElement, string, string], v: StreamAndListeners<any>): void;
+  private static setStream(_m: IORef<Map<unknown, unknown>>, _ks: unknown[], v: StreamAndListeners<any>): void {
+    const go = (ks: unknown[]) => (m: Map<unknown, unknown>): any => {
       if (ks.length === 0) {
-        return m;
-      } else if (ks.length === 1) {
-        return m.set(ks[0], v);
+        return v;
       } else {
-        return m.set(ks[0], rec(
-          fromNullable(m.get(ks[0])).filter(QListeners.isTSMap).getOrElse(new TSMap<any, unknown>()), ks.slice(1), v));
+        const k = ks[0];
+        return insert(eqSetoid<unknown>())(k, go(ks.slice(1))(lookup<unknown>(
+          eqSetoid())(k, m).filter(QListeners.isMap).getOrElse(new Map())), m);
       }
     };
 
-    return rec(_m, _ks, _v);
+    _m.modify(go(_ks)).run();
   }
 
-  private static _stopStream(m: TSMap<any, any>, k: any, stream: Stream<any>, listener: Option<Listener<any>>): void {
-    listener.foldL(
-      () => {
-        m.delete(k);
-        stream._stopNow();
-      },
-      (l: Listener<any>) => stream.removeListener(l));
-  }
+  private static stopStream(m: RootCache | DelegateCache, ks: [QElement, string], listener: Option<Listener<unknown>>): void;
+  private static stopStream(m: DelegateCache, ks: [QElement, string, string], listener: Option<Listener<unknown>>): void;
+  private static stopStream(m: IORef<Map<any, any>>, ks: unknown[], listener: Option<Listener<unknown>>): void {
+    const [anyM, anyKs]: [IORef<any>, any] = [m, ks];
+    const remove = ([stream, listeners]: StreamAndListeners<unknown>): StreamAndListeners<unknown> =>
+      [stream, listener.foldL(
+        () => {
+          listeners.forEach((l: Listener<unknown>) => stream.removeListener(l));
+          return [];
+        },
+        (l: Listener<unknown>) => {
+          stream.removeListener(l);
+          return listeners.filter(pipe(prop("next"), not(eq(l.next))));
+        })];
 
-  private static stopStream(m: RootCache, ks: [QElement, string], listener: Option<Listener<any>>): void;
-  private static stopStream(m: DelegateCache, ks: [QElement, string, string], listener: Option<Listener<any>>): void;
-  private static stopStream(_m: TSMap<any, any>, _ks: any[], listener: Option<Listener<any>>): void {
-    const rec = (m: TSMap<any, any>, ks: any[]) => {
-      if (ks.length === 0) { return; }
-      fromNullable(m.get(ks[0])).map((x: any) => {
-        if (x instanceof Stream) {
-          QListeners._stopStream(m, ks[0], x, listener);
-        } else if (x instanceof TSMap) {
-          rec(x, ks.slice(1));
-        }
-      });
-    };
-
-    rec(_m, _ks);
+    // tslint:disable no-unsafe-any
+    QListeners.getStream(anyM, anyKs).foldL(constVoid, (x: unknown) => {
+      if (QListeners.isMap(x)) {
+        toArray<unknown>(eqOrd())(x).forEach(([k, t]: [unknown, unknown]) =>
+          QListeners.setStream(anyM, anyKs.concat([k]), remove(<StreamAndListeners<unknown>>t)));
+      } else {
+        QListeners.setStream(anyM, anyKs, remove(<StreamAndListeners<unknown>>x));
+      }
+    });
+    // tslint:enable no-unsafe-any
   }
 }
 
