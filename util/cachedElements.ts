@@ -100,6 +100,3 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
       .chain((e: Q) => fromNullable(this.cache.get(e.element)));
   }
 }
-
-// For debugging - TODO - remove when we go live?
-(<any>window).CachedElements = CachedElements;

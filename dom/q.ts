@@ -1087,7 +1087,3 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     return (node: Node) => fromNullable(fn(node)).chain((n: Node) => Q.nodeIsElement(n) ? some(Q.of(n)) : this.getSibling(fn)(n));
   }
 }
-
-// For debugging - TODO - remove when we go live?
-(<any>window).Q = Q;
-(<any>window).QListeners = QListeners;
