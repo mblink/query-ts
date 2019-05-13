@@ -677,7 +677,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * @param styles An array of known CSS properties
    */
   removeInlineStyles(styles: (keyof CSSStyleDeclaration)[]): this {
-    // tslint:disable-next-line:no-null-keyword no-unsafe-any
+    // tslint:disable-next-line:no-unsafe-any
     this.setInlineStyles(Object.assign({}, ...styles.map((key: keyof CSSStyleDeclaration) => ({ [key]: "" }))));
     return this;
   }

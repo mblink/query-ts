@@ -7,6 +7,7 @@ import { Q, QElement } from "../dom/q";
 import { eqOrd, eqSetoid } from "./instances";
 import { invoke1 } from "./invoke";
 import { tap } from "./tap";
+import {trimFilter} from "./trimFilter";
 
 interface HasElement<E extends QElement = QElement> {
   getElement(): Q<E>;
@@ -29,8 +30,8 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
     const mapI = getTraversableWithIndex(eqOrd<QElement>());
     map.map(CachedElements.allCaches, (cache: CachedElements) =>
       mapI.reduceWithIndex(cache.cache, cache.cache, (oldEl: QElement, acc: Map<QElement, HasElement>, value: HasElement) =>
-        some(other).filter(invoke1("matches")(CachedElements.elementIdSelector(oldEl)))
-          .orElse(() => other.one(CachedElements.elementIdSelector(oldEl)))
+        some(other).filter((x: Q) => CachedElements.elementIdSelector(oldEl).fold(false, x.matches))
+          .orElse(() => CachedElements.elementIdSelector(oldEl).chain(other.one))
           .fold(acc, (newEl: Q) => f(acc, Q.of(oldEl), newEl, value))));
   }
 
@@ -57,12 +58,12 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
     return id.replace(/^#/, "");
   }
 
-  static elementId(el: Q | QElement): string {
-    return CachedElements.normalizeId((Q.isQ(el) ? el : Q.of(el)).getAttr("id"));
+  static elementId(el: Q | QElement): Option<string> {
+    return trimFilter(CachedElements.normalizeId((Q.isQ(el) ? el : Q.of(el)).getAttr("id")));
   }
 
-  static elementIdSelector(el: Q | QElement): string {
-    return `#${CachedElements.elementId(el)}`;
+  static elementIdSelector(el: Q | QElement): Option<string> {
+    return CachedElements.elementId(el).map((x: string) => `#${x}`);
   }
 
   private static addCache(name: string, cache: CachedElements): void {
