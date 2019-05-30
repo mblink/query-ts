@@ -2,13 +2,13 @@ import autobind from "autobind-decorator";
 import { Do } from "fp-ts-contrib/lib/Do";
 import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
-import { apply, constVoid, identity, not, pipe } from "fp-ts/lib/function";
+import { apply, constVoid, not, pipe } from "fp-ts/lib/function";
 import { HKT, Type, Type2, Type3, URIS, URIS2, URIS3 } from "fp-ts/lib/HKT";
 import { IORef } from "fp-ts/lib/IORef";
 import { insert, lookup, toArray } from "fp-ts/lib/Map";
 import { fromNullable, none, Option, some, tryCatch as tryCatchO } from "fp-ts/lib/Option";
 import { Setoid } from "fp-ts/lib/Setoid";
-import { TaskEither, taskEither, tryCatch as tryCatchTE } from "fp-ts/lib/TaskEither";
+import { TaskEither, taskEither } from "fp-ts/lib/TaskEither";
 import xs, { Listener, Producer, Stream } from "xstream";
 import { Bondlink } from "../bondlink";
 import { AttrProxy } from "../util/attrProxy";
@@ -1063,8 +1063,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 
   reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
     return Do(taskEither)
-      .bind("res", tryCatchTE(() => fetch(Bondlink.currentPath), identity))
-      .bindL("text", ({ res }: { res: Response }) => tryCatchTE(() => res.text(), identity))
+      .bind("text", fetchText(Bondlink.currentPath).map(prop(1)))
       .bindL("e", ({ text }: { text: string; }) => taskEither.of(Q.parseDocument(UnsafeHtml(text), "text/html")
         .chain((doc: Document) => Q.oneF(doc, `#${this.getAttr("id")}`).map(this.replaceWith))
         .getOrElse(this)))
