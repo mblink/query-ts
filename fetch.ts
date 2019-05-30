@@ -1,4 +1,5 @@
 import "unfetch/polyfill/index";
+import { Bondlink } from "./bondlink";
 import { constant, Function1 } from "fp-ts/lib/function";
 import { none, Option, some } from "fp-ts/lib/Option";
 import { fromEither, fromPredicate, TaskEither, tryCatch } from "fp-ts/lib/TaskEither";
@@ -32,7 +33,10 @@ const postJson = (data: unknown) => (url: string, opts?: RequestInit): TaskEithe
     method: "POST",
     cache: "no-cache",
     body: JSON.stringify(data),
-    headers: { "Content-Type": "application/json" }
+    headers: {
+      "Csrf-Token": Bondlink.config.csrf,
+      "Content-Type": "application/json"
+    }
   })(opts || {}));
 
 declare global {
