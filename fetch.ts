@@ -1,4 +1,3 @@
-import "unfetch/polyfill/index";
 import { Bondlink } from "./bondlink";
 import { constant, Function1 } from "fp-ts/lib/function";
 import { none, Option, some } from "fp-ts/lib/Option";
