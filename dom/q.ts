@@ -22,11 +22,10 @@ import { prop } from "../util/prop";
 import { cancelAnimFrame, requestAnimFrame } from "../util/requestAnimFrame";
 import { wrapArr } from "../util/wrapArr";
 import { UnsafeHtml } from "./unsafeHtml";
-import { tap } from "../util/tap";
 
 export type QElement = HTMLElement | SVGElement;
 
-let [readyFired, readyEventsBound, readyFns]: [boolean, boolean, (() => void)[]] = [false, false, [fixSafariClick]];
+let [readyFired, readyEventsBound, readyFns]: [boolean, boolean, (() => void)[]] = [false, false, []];
 
 const docReady = () => document.readyState === "complete";
 
@@ -1086,10 +1085,4 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   private getSibling(fn: (n: Node) => Node | null): (node: Node) => Option<Q> {
     return (node: Node) => fromNullable(fn(node)).chain((n: Node) => Q.nodeIsElement(n) ? some(Q.of(n)) : this.getSibling(fn)(n));
   }
-}
-
-function fixSafariClick(): void {
-  Q.one(".page-container")
-    .getOrElseL(() => tap(Q.body.append)(Q.createElement("div", [invoke.invoke1("addClass")("page-container")], Q.body.children())))
-    .listen("click", constVoid);
 }
