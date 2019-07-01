@@ -1,12 +1,11 @@
 import autobind from "autobind-decorator";
-import { apply, curry, pipe } from "fp-ts/lib/function";
-import { getTraversableWithIndex, insert, map, remove } from "fp-ts/lib/Map";
+import { apply } from "fp-ts/lib/function";
+import { getTraversableWithIndex, insert, map } from "fp-ts/lib/Map";
 import { fromNullable, Option, some } from "fp-ts/lib/Option";
 import { setoidString } from "fp-ts/lib/Setoid";
 import { Q, QElement } from "../dom/q";
 import { eqOrd, eqSetoid } from "./instances";
 import { invoke1 } from "./invoke";
-import { tap } from "./tap";
 import {trimFilter} from "./trimFilter";
 
 interface HasElement<E extends QElement = QElement> {
@@ -43,15 +42,19 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
   }
 
   static removeCachedElements(removed: Q): void {
-    CachedElements.modifyCachedElements(removed,
-      (cache: Map<QElement, HasElement>, oldEl: Q, _n: Q) => remove(qElSetoid)(oldEl.element, cache));
+    CachedElements.modifyCachedElements(removed, (cache: Map<QElement, HasElement>, oldEl: Q, _n: Q) => {
+      cache.delete(oldEl.element);
+      return cache;
+    });
   }
 
   static replaceCachedElements(replacement: Q): void {
-    CachedElements.modifyCachedElements(replacement, (cache: Map<QElement, HasElement>, oldEl: Q, newEl: Q, value: HasElement) => pipe(
-      curry<QElement, Map<QElement, HasElement>, Map<QElement, HasElement>>(remove(qElSetoid))(oldEl.element),
-      curry<QElement, HasElement, Map < QElement, HasElement>, Map<QElement, HasElement>>(insert(qElSetoid))(newEl.element)(value),
-      tap(() => value.setElement(newEl)))(cache));
+    CachedElements.modifyCachedElements(replacement, (cache: Map<QElement, HasElement>, oldEl: Q, newEl: Q, value: HasElement) => {
+      cache.delete(oldEl.element);
+      cache.set(newEl.element, value);
+      value.setElement(newEl);
+      return cache;
+    });
   }
 
   static normalizeId(id: string): string {
