@@ -8,26 +8,30 @@ import { mergeDeep } from "./util/merge";
 import { parseJson } from "./util/parseJson";
 import { prop } from "./util/prop";
 
+export type FetchResp = TaskEither<Option<Response>, Response>;
+export type FetchTextResp = TaskEither<Option<Response>, [Response, string]>;
+export type FetchJsonResp<A> = TaskEither<Option<Response>, [Response, A]>;
+
 const headers = mergeDeep({ headers: { "X-Requested-With": "XMLHttpRequest" } });
 const credentials = mergeDeep({ credentials: "same-origin" });
 
-const checkStatus: Function1<Response, TaskEither<Option<Response>, Response>> = fromPredicate(prop("ok"), some);
+const checkStatus: Function1<Response, FetchResp> = fromPredicate(prop("ok"), some);
 
 const origFetch = window.fetch;
 
-const blFetch = (url: string, opts?: RequestInit): TaskEither<Option<Response>, Response> =>
+const blFetch = (url: string, opts?: RequestInit): FetchResp =>
   tryCatch(() => origFetch(url, headers(credentials(opts || {}))), constant<Option<Response>>(none)).chain(checkStatus);
 
-const fetchTpe = <A>(f: Function1<Response, Promise<A>>) => (url: string, opts?: RequestInit): TaskEither<Option<Response>, [Response, A]> =>
+const fetchTpe = <A>(f: Function1<Response, Promise<A>>) => (url: string, opts?: RequestInit): FetchJsonResp<A> =>
   blFetch(url, opts).chain((res: Response) => tryCatch(() => f(res), constant(some(res))).map((a: A): [Response, A] => [res, a]));
 
 const fetchText = fetchTpe(invoke0("text"));
 
-const fetchJson = <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit): TaskEither<Option<Response>, [Response, A]> =>
+const fetchJson = <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit): FetchJsonResp<A> =>
   fetchText(url, opts).chain(([res, s]: [Response, string]) => fromEither(parseJson(tpe)(s))
     .mapLeft(constant(some(res))).map((a: A): [Response, A] => [res, a]));
 
-const postJson = (data: unknown) => (url: string, opts?: RequestInit): TaskEither<Option<Response>, Response> =>
+const postJson = (data: unknown) => (url: string, opts?: RequestInit): FetchResp =>
   blFetch(url, mergeDeep({
     method: "POST",
     cache: "no-cache",
@@ -39,16 +43,16 @@ const postJson = (data: unknown) => (url: string, opts?: RequestInit): TaskEithe
   })(opts || {}));
 
 declare global {
-  const blFetch: (url: string, opts?: RequestInit) => TaskEither<Option<Response>, Response>;
-  const fetchText: (url: string, opts?: RequestInit) => TaskEither<Option<Response>, [Response, string]>;
-  const fetchJson: <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit) => TaskEither<Option<Response>, [Response, A]>;
-  const postJson: (data: unknown) => (url: string, opts?: RequestInit) => TaskEither<Option<Response>, Response>;
+  const blFetch: (url: string, opts?: RequestInit) => FetchResp;
+  const fetchText: (url: string, opts?: RequestInit) => FetchTextResp;
+  const fetchJson: <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit) => FetchJsonResp<A>;
+  const postJson: (data: unknown) => (url: string, opts?: RequestInit) => FetchResp;
 
   interface Window {
-    blFetch: (url: string, opts?: RequestInit) => TaskEither<Option<Response>, Response>;
-    fetchText: (url: string, opts?: RequestInit) => TaskEither<Option<Response>, [Response, string]>;
-    fetchJson: <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit) => TaskEither<Option<Response>, [Response, A]>;
-    postJson: (data: unknown) => (url: string, opts?: RequestInit) => TaskEither<Option<Response>, Response>;
+    blFetch: (url: string, opts?: RequestInit) => FetchResp;
+    fetchText: (url: string, opts?: RequestInit) => FetchTextResp;
+    fetchJson: <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit) => FetchJsonResp<A>;
+    postJson: (data: unknown) => (url: string, opts?: RequestInit) => FetchResp;
   }
 }
 
