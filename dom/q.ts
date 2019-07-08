@@ -1088,7 +1088,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 }
 
 function fixSafariClick(): void {
-  Q.one(".ios-safari-fix")
-    .getOrElseL(() => tap(Q.body.append)(Q.createElement("div", [invoke.invoke1("addClass")("ios-safari-fix")], Q.body.children())))
-    .listen("click", constVoid);
+  if (/iphone|ipod|ipad/i.test(navigator.userAgent)) {
+    Q.root.addClass("is-ios");
+  }
 }
