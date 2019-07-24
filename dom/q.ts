@@ -992,8 +992,8 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   listen(eventName: string, listener: QCustomListener<E, E>): this;
   listen<Ev extends keyof WindowEventMap, E_ extends QElement = QElement>(
     eventName: Ev,
-    selectorOrListener: string | QListener<Ev, E, E> | QCustomListener<E, E>,
-    listener?: QListener<Ev, E_, E> | QCustomListener<E_, E>
+    selectorOrListener: string | ((ev: QCustomEvent<E, E>) => void),
+    listener?: QListener<Ev, E_, E> | ((ev: QEvent<Ev, E_, E>) => void)
   ): this {
     QListeners.add(<QEvCtor>QEvent, Q.of, this, eventName, selectorOrListener, listener);
     return this;
@@ -1009,8 +1009,8 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   listenOnce(eventName: string, listener: QCustomListener<E, E>): this;
   listenOnce<Ev extends keyof WindowEventMap, E_ extends QElement = QElement>(
     eventName: Ev,
-    selectorOrListener: string | QListener<Ev, E, E> | QCustomListener<E, E>,
-    listener?: QListener<Ev, E_, E> | QCustomListener<E_, E>
+    selectorOrListener: string | ((ev: QCustomEvent<E, E>) => void),
+    listener?: QListener<Ev, E_, E> | ((ev: QEvent<Ev, E_, E>) => void)
   ): this {
     QListeners.addOnce(<QEvCtor>QEvent, Q.of, this, eventName, selectorOrListener, listener);
     return this;
