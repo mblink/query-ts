@@ -2,19 +2,34 @@ import autobind from "autobind-decorator";
 import { Do } from "fp-ts-contrib/lib/Do";
 import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
-import { apply, constVoid, not, pipe } from "fp-ts/lib/function";
+import { apply, constVoid, not } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/pipeable";
 import { HKT, Type, Type2, Type3, URIS, URIS2, URIS3 } from "fp-ts/lib/HKT";
 import { IORef } from "fp-ts/lib/IORef";
+import { mapIO } from "fp-ts/lib/IO";
 import { insert, lookup, toArray } from "fp-ts/lib/Map";
-import { fromNullable, none, Option, some, tryCatch as tryCatchO } from "fp-ts/lib/Option";
-import { Setoid } from "fp-ts/lib/Setoid";
+import {
+  fromNullable,
+  getOrElse,
+  none,
+  Option,
+  some,
+  tryCatch as tryCatchO,
+  chain,
+  ap,
+  map,
+  fold,
+  filter,
+  mapNullable, alt, isSome
+} from "fp-ts/lib/Option";
+import { Eq } from "fp-ts/lib/Eq";
 import { TaskEither, taskEither } from "fp-ts/lib/TaskEither";
 import xs, { Listener, Producer, Stream } from "xstream";
 import { Bondlink } from "../bondlink";
 import { AttrProxy } from "../util/attrProxy";
 import { CachedElements } from "../util/cachedElements";
 import { eq } from "../util/eq";
-import { eqOrd, eqSetoid } from "../util/instances";
+import { eqOrd, eqEq } from "../util/instances";
 import * as invoke from "../util/invoke";
 import { Log } from "../util/log";
 import { parseNumber } from "../util/parseNumber";
@@ -78,7 +93,9 @@ export abstract class QBaseEvent<
 
   which(this: QBaseEvent<MouseEvent | KeyboardEvent>): number {
     // tslint:disable:deprecation no-bitwise one-line strict-boolean-expressions
-    return fromNullable(this.event.which).getOrElseL(() => {
+    return pipe(
+      fromNullable(this.event.which),
+      getOrElse(() => {
       if (this.event instanceof MouseEvent) {
         if (this.event.button & 1) { return 1; }
         else if (this.event.button & 2) { return 3; }
@@ -87,7 +104,7 @@ export abstract class QBaseEvent<
       } else {
         return this.event.charCode || this.event.keyCode;
       }
-    });
+    }));
     // tslint:enable:deprecation no-bitwise one-line strict-boolean-expressions
   }
 }
@@ -148,8 +165,9 @@ const qListenerProducer = <Ev extends Event>(element: QElement, eventName: strin
 };
 
 const addQListener = (element: QElement, eventName: string, uc: boolean) => <Ev extends Event>(next: (e: Ev) => void) => (streamO: Option<StreamAndListeners<unknown>>): [Stream<Ev>, Listener<Ev>, Listener<Ev>[]] => {
-  const [stream, listeners] = (<Option<StreamAndListeners<Ev>>>streamO)
-    .getOrElse([xs.create(qListenerProducer(element, eventName, uc)), []]);
+  const [stream, listeners] = pipe(
+    (<Option<StreamAndListeners<Ev>>>streamO),
+    getOrElse(() => [xs.create(qListenerProducer(element, eventName, uc)), []]));
   const listener: Listener<Ev> = {
     next,
     error: (e: any) => Log.error(`Error occurred in ${eventName} event stream`, e),
@@ -187,10 +205,11 @@ export class QListeners {
       ? [
         QListeners.delegateCache,
         [element.element, eventName, selectorOrListener],
-        (e: Ev) => fromNullable(<HTMLElement>e.target)
-            .chain((el: HTMLElement) => element.buildNext(el).closest<E_>(selectorOrListener))
-            .map((delegateTarget: Q<E_>) => listener!(<QEv2>(new ctor(e, delegateTarget,
-              QListeners.thisElement(e, mkQ, element), QListeners.originationElement(e, mkQ)))))
+        (e: Ev) => pipe(
+          fromNullable(<HTMLElement>e.target),
+          chain((el: HTMLElement) => element.buildNext(el).closest<E_>(selectorOrListener)),
+          map((delegateTarget: Q<E_>) => listener!(<QEv2>(new ctor(e, delegateTarget,
+              QListeners.thisElement(e, mkQ, element), QListeners.originationElement(e, mkQ))))))
       ]
       : [
         QListeners.rootCache,
@@ -233,21 +252,24 @@ export class QListeners {
    * Remove all event listeners for a given event from a given element
    */
   static remove(element: Q, eventName: string, listener: Option<Listener<any>>, selector?: string): void {
-    fromNullable(selector).foldL(
+    fold(
       () => {
         QListeners.stopStream(QListeners.rootCache, [element.element, eventName], listener);
         QListeners.stopStream(QListeners.delegateCache, [element.element, eventName], listener);
       },
       (s: string) => QListeners.stopStream(QListeners.delegateCache, [element.element, eventName, s], listener)
-    );
+    )(fromNullable(selector));
   }
 
   private static thisElement<E extends QElement>(event: Event, mkQ: MkQ, fallback: Q<E>): Q<E> {
-    return fromNullable(<E>event.currentTarget).map(mkQ).getOrElse(fallback);
+    return pipe(
+      fromNullable(<E>event.currentTarget),
+      map(mkQ),
+      getOrElse(() => fallback));
   }
 
   private static originationElement(event: Event, mkQ: MkQ): Option<Q> {
-    return fromNullable(<QElement>event.target).map(mkQ);
+    return map(mkQ)(fromNullable(<QElement>event.target));
   }
 
   private static isMap(u: unknown): u is Map<unknown, unknown> {
@@ -259,9 +281,9 @@ export class QListeners {
   private static getStream(m: DelegateCache, ks: [QElement, string, string]): Option<StreamAndListeners<unknown>>;
   private static getStream(_m: IORef<Map<unknown, unknown>>, _ks: unknown[]): Option<unknown> {
     const go = (ks: unknown[]) => (m: Map<any, any>): Option<unknown> =>
-      ks.length === 0 ? some(m) : lookup(eqSetoid<unknown>())(ks[0], m).chain(go(ks.slice(1)));
+      ks.length === 0 ? some(m) : chain(go(ks.slice(1)))(lookup(eqEq<unknown>())(ks[0], m));
 
-    return _m.read.map(go(_ks)).run();
+    return mapIO(go(_ks))(_m.read).run();
   }
 
   private static setStream(m: RootCache, ks: [QElement, string], v: StreamAndListeners<any>): void;
@@ -272,8 +294,11 @@ export class QListeners {
         return v;
       } else {
         const k = ks[0];
-        return insert(eqSetoid<unknown>())(k, go(ks.slice(1))(lookup<unknown>(
-          eqSetoid())(k, m).filter(QListeners.isMap).getOrElse(new Map())), m);
+        return insert(eqEq<unknown>())(k, go(ks.slice(1))(
+          pipe(
+            lookup<unknown>(eqEq())(k, m),
+            filter(QListeners.isMap),
+            getOrElse(() => new Map()))), m);
       }
     };
 
@@ -285,25 +310,27 @@ export class QListeners {
   private static stopStream(m: IORef<Map<any, any>>, ks: unknown[], listener: Option<Listener<unknown>>): void {
     const [anyM, anyKs]: [IORef<any>, any] = [m, ks];
     const remove = ([stream, listeners]: StreamAndListeners<unknown>): StreamAndListeners<unknown> =>
-      [stream, listener.foldL(
+      [stream, fold(
         () => {
           listeners.forEach((l: Listener<unknown>) => stream.removeListener(l));
           return [];
         },
         (l: Listener<unknown>) => {
           stream.removeListener(l);
-          return listeners.filter(pipe(prop("next"), not(eq(l.next))));
-        })];
+          return listeners.filter((a) => not(eq(l.next))(prop("next")(a)));
+        })(listener)];
 
     // tslint:disable no-unsafe-any
-    QListeners.getStream(anyM, anyKs).foldL(constVoid, (x: unknown) => {
-      if (QListeners.isMap(x)) {
-        toArray<unknown>(eqOrd())(x).forEach(([k, t]: [unknown, unknown]) =>
-          QListeners.setStream(anyM, anyKs.concat([k]), remove(<StreamAndListeners<unknown>>t)));
-      } else {
-        QListeners.setStream(anyM, anyKs, remove(<StreamAndListeners<unknown>>x));
-      }
-    });
+    pipe(
+      QListeners.getStream(anyM, anyKs),
+      fold(constVoid, (x: unknown) => {
+        if (QListeners.isMap(x)) {
+          toArray<unknown>(eqOrd())(x).forEach(([k, t]: [unknown, unknown]) =>
+            QListeners.setStream(anyM, anyKs.concat([k]), remove(<StreamAndListeners<unknown>>t)));
+        } else {
+          QListeners.setStream(anyM, anyKs, remove(<StreamAndListeners<unknown>>x));
+        }
+      }));
     // tslint:enable no-unsafe-any
   }
 }
@@ -314,7 +341,7 @@ export class QListeners {
  */
 @autobind
 export class Q<E extends QElement = QElement> extends AttrProxy<E> {
-  static readonly setoid: Setoid<Q<any>> = { equals: (q1: Q<any>, q2: Q<any>): boolean => q1.equals(q2) };
+  static readonly eq: Eq<Q<any>> = { equals: (q1: Q<any>, q2: Q<any>): boolean => q1.equals(q2) };
 
   static readonly inputSelector = "input, select, textarea, *[contenteditable]";
   static readonly focusableSelector = `a[href], area[href], ${Q.inputSelector}, button, iframe, object, embed, *[tabindex]`;
@@ -340,7 +367,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   static oneF<K extends keyof HTMLElementTagNameMap>(root: Pick<Document, "querySelector">, selector: K): Option<Q<HTMLElementTagNameMap[K]>>;
   static oneF<E extends QElement = QElement>(root: Pick<Document, "querySelector">, selector: string): Option<Q<E>>;
   static oneF<E extends QElement = QElement>(root: Pick<Document, "querySelector">, selector: string): Option<Q<E>> {
-    return fromNullable(root.querySelector<E>(selector)).map(Q.of);
+    return map(Q.of)(fromNullable(root.querySelector<E>(selector)));
   }
 
   /**
@@ -390,7 +417,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * @param elements The elements to filter
    */
   static filtered = <E extends QElement = QElement>(selector?: string) => (elements: Q<E>[]): Q<E>[] => {
-    return fromNullable(selector).fold(elements, (s: string) => elements.filter(invoke.invoke1("matches")(s)));
+    return fold(() => elements, (s: string) => elements.filter(invoke.invoke1("matches")(s)))(fromNullable(selector));
   }
 
   /**
@@ -408,7 +435,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     return new Promise((resolve: () => void, reject: () => void) => {
       let retries = 1;
       let interval: Option<number> = none;
-      const cancel = (cb: () => void) => { interval.map(cancelAnimFrame); cb(); };
+      const cancel = (cb: () => void) => { map(cancelAnimFrame)(interval); cb(); };
 
       const retry = () => {
         if (cond()) {
@@ -426,7 +453,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   }
 
   static remToPx(rems: number): number {
-    return rems * parseNumber(Q.root.getComputedStyle("fontSize")).getOrElse(16);
+    return rems * getOrElse(() => 16)(parseNumber(Q.root.getComputedStyle("fontSize")));
   }
 
   /**
@@ -461,10 +488,11 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   static parseFragment<E extends HTMLElement>(fragment: UnsafeHtml, contentType: "text/html"): Option<Q<E>>;
   static parseFragment<E extends SVGElement>(fragment: UnsafeHtml, contentType: "image/svg+xml"): Option<Q<E>>;
   static parseFragment<E extends QElement = QElement>(fragment: UnsafeHtml, contentType: "text/html" | "image/svg+xml"): Option<Q<E>> {
-    return Q.parseDocument(fragment, contentType)
-      .chain((doc: Document) => contentType === "text/html" ? fromNullable(doc.body).mapNullable(prop("firstChild")) : fromNullable(doc.firstChild))
-      .filter(Q.nodeIsElement)
-      .map((e: QElement) => Q.of(<E>e));
+    return pipe(
+      Q.parseDocument(fragment, contentType),
+      chain((doc: Document) => contentType === "text/html" ? mapNullable(prop("firstChild"))(fromNullable(doc.body)) : fromNullable(doc.firstChild)),
+      filter(Q.nodeIsElement),
+      map((e: QElement) => Q.of(<E>e)));
   }
 
   static parseDocument(document: UnsafeHtml, contentType: "text/html" | "image/svg+xml"): Option<Document> {
@@ -500,9 +528,12 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * Get the current scrollTop value
    */
   static getScrollTop(): number {
-    return fromNullable(window.scrollY)
-      .orElse(() => fromNullable(document.documentElement).mapNullable(prop("scrollTop")))
-      .getOrElse(document.body.scrollTop);
+    return pipe(
+      fromNullable(window.scrollY),
+      alt(() => pipe(
+        fromNullable(document.documentElement),
+        mapNullable(prop("scrollTop")))),
+      getOrElse(() => document.body.scrollTop));
   }
 
   /**
@@ -536,7 +567,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   one<K extends keyof HTMLElementTagNameMap>(selector: K): Option<Q<HTMLElementTagNameMap[K]>>;
   one<E_ extends QElement = QElement>(selector: string): Option<Q<E_>>;
   one<E_ extends QElement = QElement>(selector: string): Option<Q<E_>> {
-    return fromNullable(this.element.querySelector<E_>(selector)).map(this.buildNext.bind(this));
+    return pipe(
+      fromNullable(this.element.querySelector<E_>(selector)),
+      map(this.buildNext.bind(this)));
   }
 
   /**
@@ -562,7 +595,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * NOTE: This is only available when the element is an HTMLAnchorElement
    */
   getRawHref(this: Q<HTMLAnchorElement>): string {
-    return this.getAttrO("href").getOrElse("");
+    return pipe(
+      this.getAttrO("href"),
+      getOrElse(() => ""));
   }
 
   /**
@@ -694,8 +729,8 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    */
   getHeightWithMargin(): number {
     return this.getHeightNoMargin() +
-      parseNumber(this.getComputedStyle("marginTop")).getOrElse(0) +
-      parseNumber(this.getComputedStyle("marginBottom")).getOrElse(0);
+      getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginTop"))) +
+      getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginBottom")));
   }
 
   /**
@@ -710,8 +745,8 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    */
   getWidthWithMargin(): number {
     return this.getWidthNoMargin() +
-      parseNumber(this.getComputedStyle("marginLeft")).getOrElse(0) +
-      parseNumber(this.getComputedStyle("marginRight")).getOrElse(0);
+      getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginLeft"))) +
+      getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginRight")));
   }
 
   /**
@@ -733,10 +768,10 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   getOffsetWithMargin(): QPosition {
     const base = this.getOffsetNoMargin();
     return {
-      top: base.top - parseNumber(this.getComputedStyle("marginTop")).getOrElse(0),
-      right: base.right - parseNumber(this.getComputedStyle("marginRight")).getOrElse(0),
-      bottom: base.bottom - parseNumber(this.getComputedStyle("marginBottom")).getOrElse(0),
-      left: base.left - parseNumber(this.getComputedStyle("marginLeft")).getOrElse(0)
+      top: base.top - getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginTop"))),
+      right: base.right - getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginRight"))),
+      bottom: base.bottom - getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginBottom"))),
+      left: base.left - getOrElse(() => 0)(parseNumber(this.getComputedStyle("marginLeft")))
     };
   }
 
@@ -764,7 +799,10 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * @typeparam E_ The type of DOM element expected
    */
   parent<E_ extends QElement = QElement>(): Option<Q<E_>> {
-    return fromNullable(<E_>this.element.parentNode).filter(Q.nodeIsElement).map(this.buildNext.bind(this));
+    return pipe(
+      fromNullable(<E_>this.element.parentNode),
+      filter(Q.nodeIsElement),
+      map(this.buildNext.bind(this)));
   }
 
   /**
@@ -778,7 +816,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   closest<E_ extends QElement = QElement>(selector: string): Option<Q<E_>> {
     return this.matches(selector)
       ? some(<Q<E_>>(<any>this))
-      : this.parent<E_>().chain((q: Q<E_>) => q.closest<E_>(selector));
+      : pipe(
+          this.parent<E_>(),
+          chain((q: Q<E_>) => q.closest<E_>(selector)));
   }
 
   /**
@@ -793,7 +833,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    */
   contains(selectorOrOtherEl: string | Q): boolean {
     return typeof selectorOrOtherEl === "string"
-      ? this.one(selectorOrOtherEl).isSome()
+      ? isSome(this.one(selectorOrOtherEl))
       : this.element.contains(selectorOrOtherEl.element);
   }
 
@@ -801,7 +841,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * Get the siblings of the current element, optionally filtered by a selector
    */
   siblings(selector?: string): Q[] {
-    return Q.filtered(selector)(this.parent().fold([], (p: Q) => p.children().filter((e: Q) => e.element !== this.element)));
+    return Q.filtered(selector)(fold(() => [], (p: Q) => p.children().filter((e: Q) => e.element !== this.element))(this.parent()));
   }
 
   prevSibling(): Option<Q> {
@@ -827,10 +867,12 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     if (typeof this.element.replaceWith === "function") {
       this.element.replaceWith(other.element);
     } else {
-      this.parent().fold(
+      pipe(
+        this.parent(),
+        fold(
         // Last ditch effort if the element doesn't have a parent
         () => { this.setOuterHtml(other.getOuterHtml()); },
-        (p: Q) => () => p.element.replaceChild(other.element, this.element))();
+        (p: Q) => () => p.element.replaceChild(other.element, this.element)));
     }
     CachedElements.replaceCachedElements(other);
     return this;
@@ -840,7 +882,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * Removes this element from the DOM
    */
   remove(): void {
-    this.parent().map((p: Q) => p.element.removeChild(this.element));
+    map((p: Q) => p.element.removeChild(this.element))(this.parent());
     CachedElements.removeCachedElements(this);
   }
 
@@ -1063,10 +1105,12 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 
   reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
     return Do(taskEither)
-      .bind("text", fetchText(Bondlink.currentPath).map(prop(1)))
-      .bindL("e", ({ text }: { text: string; }) => taskEither.of(Q.parseDocument(UnsafeHtml(text), "text/html")
-        .chain((doc: Document) => Q.oneF(doc, `#${this.getAttr("id")}`).map(this.replaceWith))
-        .getOrElse(this)))
+      .bind("text", map(prop(1))(fetchText(Bondlink.currentPath)))
+      .bindL("e", ({ text }: { text: string; }) => taskEither.of(
+        pipe(
+          Q.parseDocument(UnsafeHtml(text), "text/html"),
+          chain((doc: Document) => map(this.replaceWith)(Q.oneF(doc, `#${this.getAttr("id")}`))),
+          getOrElse(() => this))))
       .return(prop("e"));
   }
 
@@ -1083,7 +1127,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   }
 
   private getSibling(fn: (n: Node) => Node | null): (node: Node) => Option<Q> {
-    return (node: Node) => fromNullable(fn(node)).chain((n: Node) => Q.nodeIsElement(n) ? some(Q.of(n)) : this.getSibling(fn)(n));
+    return (node: Node) => pipe(
+      fromNullable(fn(node)),
+      chain((n: Node) => Q.nodeIsElement(n) ? some(Q.of(n)) : this.getSibling(fn)(n)));
   }
 }
 
