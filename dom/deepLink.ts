@@ -1,10 +1,11 @@
 import autobind from "autobind-decorator";
 import Clipboard from "clipboard";
 import { array, findFirst, findIndex, zip } from "fp-ts/lib/Array";
-import { constVoid, not, pipe } from "fp-ts/lib/function";
-import { fromNullable, none, Option, some } from "fp-ts/lib/Option";
+import { constVoid, not, flow } from "fp-ts/lib/function";
+import { fromNullable, none, Option, some, fold, getOrElse, map, chain, isSome, filter } from "fp-ts/lib/Option";
 import { fromFoldable, lookup, toArray } from "fp-ts/lib/Record";
 import { getLastSemigroup } from "fp-ts/lib/Semigroup";
+import { pipe } from "fp-ts/lib/pipeable";
 import { JumpLinks } from "../../../sites/assets/scripts/jumpLinks";
 import { Modal as ModalComp } from "../ui/modal";
 import { Table } from "../ui/table";
@@ -29,7 +30,7 @@ abstract class DeepLinkType {
   abstract process(m: { [k: string]: string }): void;
 
   protected mkRe(prefix: string, suffix?: string): RegExp {
-    return new RegExp(`^${prefix}${this.separator}([A-Za-z][a-zA-Z0-9\-_:\.]+)${fromNullable(suffix).fold("", (s: string) => `${this.separator}${s}`)}$`);
+    return new RegExp(`^${prefix}${this.separator}([A-Za-z][a-zA-Z0-9\-_:\.]+)${fold(() => "", (s: string) => `${this.separator}${s}`)(fromNullable(suffix))}$`);
   }
 }
 
@@ -39,12 +40,12 @@ export class Modal extends DeepLinkType {
   reMatchNames = ["modalId"];
   linkBuilders = {
     [`${Modal.toggle(none)}`]: (btn: Q) =>
-      `modal${this.separator}${CachedElements.normalizeId(btn.getData("target").getOrElse(""))}`,
+      `modal${this.separator}${CachedElements.normalizeId(getOrElse(() => "")(btn.getData("target")))}`,
     [`${ModalComp.toggleSelector}[href]:not([data-target])`]: (link: Q) =>
-      `modal${this.separator}${CachedElements.normalizeId(link.getAttrO("href").getOrElse(""))}`
+      `modal${this.separator}${CachedElements.normalizeId(getOrElse(() => "")(link.getAttrO("href")))}`
   };
 
-  static dataTarget = (base: string, id: Option<string>) => `${base}[data-target${id.fold("", (s: string) => `="${s}"`)}]`;
+  static dataTarget = (base: string, id: Option<string>) => `${base}[data-target${fold(() => "", (s: string) => `="${s}"`)(id)}]`;
   static toggle = (id: Option<string>) => Modal.dataTarget(ModalComp.toggleSelector, id);
 
   // If it matches the regex, it's all good
@@ -60,9 +61,9 @@ export class DataTable extends DeepLinkType {
   re = this.mkRe("dt", `([a-zA-Z0-9]+)(${this.separator}([a-zA-Z0-9]+))?`);
   reMatchNames = ["dtId", "rowId", "_", "action"];
   linkBuilders = {
-    ".table tbody tr": (row: Q) => `dt${this.separator}${this.dtAndRowIds(row).getOrElse("")}`,
+    ".table tbody tr": (row: Q) => `dt${this.separator}${getOrElse(() => "")(this.dtAndRowIds(row))}`,
     '.table td[data-action]:not([data-action="delete"])': (cell: Q) =>
-      `dt${this.separator}${this.dtAndRowIds(cell).getOrElse("")}${this.separator}${cell.getData("action").getOrElse("")}`
+      `dt${this.separator}${getOrElse(() => "")(this.dtAndRowIds(cell))}${this.separator}${getOrElse(() => "")(cell.getData("action"))}`
   };
 
   // If it matches the regex, it's all good
@@ -70,31 +71,38 @@ export class DataTable extends DeepLinkType {
 
   process(m: Record<string, string>): void {
     const id = `${m.dtId}-${m.rowId}`;
-    Q.one(`#${m.dtId}`).chain(Table.cache.get).map((table: Table) =>
-      findIndex(table.dataTable.data, pipe(prop("id"), eq(id))).map((rowIdx: number) => {
-        table.paginateTo(Math.max(1, Math.ceil(rowIdx / Table.pageSize)), false);
-        Q.waitFor(() => Q.one(`#${id}`).map(invoke0("isVisible")).getOrElse(false))
-          .then(() => Q.one(`#${id}`).map((row: Q) => {
-            setTimeout(() => {
-              JumpLinks.jumpTo(row, none);
-              row.addClass("highlight-primary");
-              setTimeout(() => row.removeClass("highlight-primary"), 5000);
-            }, 100);
+    pipe(Q.one(`#${m.dtId}`), chain(Table.cache.get), map((table: Table) =>
+      pipe(
+        findIndex(flow(prop("id"), eq(id)))(table.dataTable.data),
+        map((rowIdx: number) => {
+          table.paginateTo(Math.max(1, Math.ceil(rowIdx / Table.pageSize)), false);
+          Q.waitFor(() => pipe(Q.one(`#${id}`), map(invoke0("isVisible")), getOrElse(() => false)))
+            .then(() => map( (row: Q) => {
+              setTimeout(() => {
+                JumpLinks.jumpTo(row, none);
+                row.addClass("highlight-primary");
+                setTimeout(() => row.removeClass("highlight-primary"), 5000);
+              }, 100);
 
-            lookup("action", m).filter(not(eq("delete"))).chain((a: string) =>
-              row.one(`td[data-action="${a}"]:not([data-action="delete"])`).map((actionEl: Q) => {
-                // TODO - support calling actions on elements
-                Log.info("Calling action on element", actionEl);
-              })
-            );
-          }))
-          .catch(() => Log.warn("DeepLink", "Row never became visible"));
-      }));
+              chain((a: string) =>
+                map((actionEl: Q) => {
+                  // TODO - support calling actions on elements
+                  Log.info("Calling action on element", actionEl);
+                })(row.one(`td[data-action="${a}"]:not([data-action="delete"])`))
+              )(lookup("action", m).filter(not(eq("delete"))));
+            })(Q.one(`#${id}`)))
+            .catch(() => Log.warn("DeepLink", "Row never became visible"));
+        })
+      )
+    ));
   }
 
   private dtAndRowIds(el: Q): Option<string> {
-    return el.closest(".table").chain(Table.cache.get).map((table: Table) =>
-      `${table.dataTable.element.getAttr("id")}${this.separator}${table.getRowIdFromTarget(el).getOrElse("")}`);
+    return pipe(
+      el.closest(".table"),
+      chain(Table.cache.get),
+      map((table: Table) => `${table.dataTable.element.getAttr("id")}${this.separator}${getOrElse(() => "")(table.getRowIdFromTarget(el))}`)
+    );
   }
 }
 
@@ -105,9 +113,9 @@ class Any extends DeepLinkType {
   reMatchNames = ["id"];
   linkBuilders = {};
 
-  match(m: { [k: string]: string }): boolean { return Q.one(`#${m.id}`).isSome(); }
+  match(m: { [k: string]: string }): boolean { return isSome(Q.one(`#${m.id}`)); }
   process(m: { [k: string]: string }): void {
-    Q.one(`#${m.id}`).map((e: Q) => JumpLinks.jumpTo(e, Q.one(`.jump-link a[href="#${m.id}"]`)));
+    map((e: Q) => JumpLinks.jumpTo(e, Q.one(`.jump-link a[href="#${m.id}"]`)))(Q.one(`#${m.id}`));
   }
 }
 
@@ -122,8 +130,10 @@ export class DeepLink {
   }
 
   static initMatch(): void {
-    findFirst(deepLinkTypes, DeepLink.tryMatch).map((dlt: DeepLinkType) =>
-      Log.info("DeepLink", "Initialized deep link", window.location.hash, dlt));
+    pipe(
+      findFirst(DeepLink.tryMatch)(deepLinkTypes),
+      map((dlt: DeepLinkType) => Log.info("DeepLink", "Initialized deep link", window.location.hash, dlt))
+    );
   }
 
   static initLinkBuilders(): void {
@@ -132,13 +142,15 @@ export class DeepLink {
   }
 
   private static tryMatch(dlt: DeepLinkType): boolean {
-    return fromNullable(window.location.hash.slice(1).match(dlt.re))
-      .filter((rm: RegExpMatchArray) => rm.length - 1 === dlt.reMatchNames.length)
-      .map((rm: RegExpMatchArray) => fromFoldable(array)(
-        zip(dlt.reMatchNames, rm.slice(1, dlt.reMatchNames.length + 1)), getLastSemigroup<string>().concat))
-      .filter(dlt.match)
-      .map((m: { [k: string]: string }) => { dlt.process(m); return true; })
-      .getOrElse(false);
+    return pipe(
+      fromNullable(window.location.hash.slice(1).match(dlt.re)),
+      filter((rm: RegExpMatchArray) => rm.length - 1 === dlt.reMatchNames.length),
+      map((rm: RegExpMatchArray) => fromFoldable(array)(
+        zip(dlt.reMatchNames, rm.slice(1, dlt.reMatchNames.length + 1)), getLastSemigroup<string>().concat)),
+      filter(dlt.match),
+      map((m: { [k: string]: string }) => { dlt.process(m); return true; }),
+      getOrElse(() => false)
+    );
   }
 
   private static ctxMenu(hash: string): Q {
@@ -160,7 +172,7 @@ export class DeepLink {
 
   private static bindLinkBuilders(builders: Builders): void {
     let menu: Option<Q> = none;
-    const removeCtxMenu = () => { menu.map(invoke0("remove")); };
+    const removeCtxMenu = () => { map(invoke0("remove"))(menu); };
     (new Clipboard("#ctx-menu .copy-text")).on("success", removeCtxMenu);
 
     Q.body.listen("contextmenu", Object.keys(builders).join(", "), (e: QEvent<"contextmenu">) => {
@@ -172,20 +184,23 @@ export class DeepLink {
       e.stopPropagation();
 
       removeCtxMenu();
-      findFirst(toArray(builders), pipe(prop(0), e.selectedElement.matches)).map(([_, builder]: [string, (e: Q) => string]) => {
-        const newMenu = DeepLink.ctxMenu(builder(e.selectedElement));
-        menu = some(newMenu);
-        const pageX = e.getAttr("pageX");
-        const menuWidth = newMenu.getWidthWithMargin();
-        newMenu.setInlineStyles({
-          position: "absolute",
-          top: `${e.getAttr("pageY")}px`,
-          left: `${(pageX + menuWidth) >= getWindowSize().width ? pageX - menuWidth : pageX}px`
-        });
-        Q.body.append(newMenu);
-      });
+      pipe(
+        findFirst(flow(prop(0), e.selectedElement.matches))(toArray(builders)),
+        map(([_, builder]: [string, (e: Q) => string]) => {
+          const newMenu = DeepLink.ctxMenu(builder(e.selectedElement));
+          menu = some(newMenu);
+          const pageX = e.getAttr("pageX");
+          const menuWidth = newMenu.getWidthWithMargin();
+          newMenu.setInlineStyles({
+            position: "absolute",
+            top: `${e.getAttr("pageY")}px`,
+            left: `${(pageX + menuWidth) >= getWindowSize().width ? pageX - menuWidth : pageX}px`
+          });
+          Q.body.append(newMenu);
+        })
+      );
     });
 
-    Q.body.listen("click", (e: QEvent) => e.selectedElement.closest("#ctx-menu").foldL(removeCtxMenu, constVoid));
+    Q.body.listen("click", (e: QEvent) => fold(removeCtxMenu, constVoid)(e.selectedElement.closest("#ctx-menu")));
   }
 }
