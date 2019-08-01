@@ -283,7 +283,7 @@ export class QListeners {
     const go = (ks: unknown[]) => (m: Map<any, any>): Option<unknown> =>
       ks.length === 0 ? some(m) : chain(go(ks.slice(1)))(lookup(eqSetoid<unknown>())(ks[0], m));
 
-    return mapIO(go(_ks))(_m.read).run();
+    return mapIO(go(_ks))(_m.read)();
   }
 
   private static setStream(m: RootCache, ks: [QElement, string], v: StreamAndListeners<any>): void;
@@ -302,7 +302,7 @@ export class QListeners {
       }
     };
 
-    _m.modify(go(_ks)).run();
+    _m.modify(go(_ks))();
   }
 
   private static stopStream(m: RootCache | DelegateCache, ks: [QElement, string], listener: Option<Listener<unknown>>): void;
