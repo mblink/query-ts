@@ -1,18 +1,22 @@
 import { getMonoid } from "fp-ts/lib/Record";
 import { getLastSemigroup, Semigroup } from "fp-ts/lib/Semigroup";
 import { wrapArr } from "./wrapArr";
-import { fromNullable } from "fp-ts/lib/Option";
+import { fromNullable, filter, fold, mapNullable } from "fp-ts/lib/Option";
 import { prop } from "./prop";
-import { pipe } from "fp-ts/lib/function";
+import { flow } from "fp-ts/lib/function";
 import { invoke0 } from "./invoke";
 import { eq } from "./eq";
+import { pipe } from "fp-ts/lib/pipeable";
 
 const fToS = ({}).hasOwnProperty.toString;
 
-export const isObj = (a: any): a is object => fromNullable(a)
-  .filter(pipe(invoke0("toString"), eq("[object Object]")))
-  .fold(false, (x: any) => fromNullable(Object.getPrototypeOf(x)).mapNullable(prop("constructor")).fold(true,
-    (ctor: any) => typeof ctor === "function" && fToS.call(ctor) === fToS.call(Object)));
+export const isObj = (a: any): a is object => pipe(fromNullable(a),
+  filter(flow(invoke0("toString"), eq("[object Object]"))),
+  fold(
+    () => false,
+    (x: any) => pipe(fromNullable(Object.getPrototypeOf(x)), mapNullable(prop("constructor")), fold(
+      () => true,
+      (ctor: any) => typeof ctor === "function" && fToS.call(ctor) === fToS.call(Object)))));
 
 export const mergeWith = (sg: Semigroup<any>) => <A extends object>(a: A) => <B extends object>(b: B): A & B =>
   <A & B>(<unknown>getMonoid(sg).concat(a, b));
