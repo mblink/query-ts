@@ -2,12 +2,11 @@ import autobind from "autobind-decorator";
 import { Do } from "fp-ts-contrib/lib/Do";
 import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
-import { apply, constVoid, not } from "fp-ts/lib/function";
+import { constVoid, not } from "fp-ts/lib/function";
 import { pipe } from "fp-ts/lib/pipeable";
 import { HKT, Kind2, Kind3, URIS, URIS2, URIS3, Kind } from "fp-ts/lib/HKT";
 import { IORef } from "fp-ts/lib/IORef";
-import { mapIO } from "fp-ts/lib/IO";
-import { insertAt, lookup, toArray } from "fp-ts/lib/Map";
+import { insertAt, lookup, toArray, map as mapM } from "fp-ts/lib/Map";
 import {
   fromNullable,
   getOrElse,
@@ -285,7 +284,7 @@ export class QListeners {
     const go = (ks: unknown[]) => (m: Map<any, any>): Option<unknown> =>
       ks.length === 0 ? some(m) : chain(go(ks.slice(1)))(lookup(eqSetoid<unknown>())(ks[0], m));
 
-    return mapIO(go(_ks))(_m.read)();
+    return go(_ks)(_m.read());
   }
 
   private static setStream(m: RootCache, ks: [QElement, string], v: StreamAndListeners<any>): void;
