@@ -1,7 +1,8 @@
 import escapeHtml from "escape-html";
 import { flatten, last, zip } from "fp-ts/lib/Array";
-import { apply, pipe } from "fp-ts/lib/function";
-import { fromNullable } from "fp-ts/lib/Option";
+import { flow } from "fp-ts/lib/function";
+import { pipe } from "fp-ts/lib/pipeable";
+import { fold, fromNullable } from "fp-ts/lib/Option";
 import { invoke0 } from "../util/invoke";
 import { wrapArr } from "../util/wrapArr";
 
@@ -22,8 +23,12 @@ export function isUnsafeHtml(a: any): a is UnsafeHtml {
 }
 
 export function html(tsa: TemplateStringsArray, ...vars: any[]): UnsafeHtml {
-  const fmt = (x: any): string => isUnsafeHtml(x) ? x.toString() : fromNullable(x).fold("", pipe(invoke0("toString"), escapeHtml));
-  return UnsafeHtml(apply((lits: string[]) => flatten(zip(lits, vars.map(fmt))).concat(last(lits).fold([], wrapArr)))(tsa.slice(0)).join(""));
+  const fmt = (x: any): string => isUnsafeHtml(x) ? x.toString() : fold(() => "", flow(invoke0("toString"), escapeHtml))(fromNullable(x));
+  const apply = (lits: string[]) => flatten(zip(lits, vars.map(fmt))).concat(pipe(
+    last(lits),
+    fold(() => [], wrapArr)
+  ));
+  return UnsafeHtml(apply(tsa.slice(0)).join(""));
 }
 
 export function joinHtml(hs: UnsafeHtml[]): UnsafeHtml {

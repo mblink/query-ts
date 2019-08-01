@@ -1,8 +1,8 @@
 import autobind from "autobind-decorator";
-import { apply } from "fp-ts/lib/function";
-import { getTraversableWithIndex, insert, map } from "fp-ts/lib/Map";
-import { fromNullable, Option, some } from "fp-ts/lib/Option";
-import { setoidString } from "fp-ts/lib/Setoid";
+import { getTraversableWithIndex, insertAt, map } from "fp-ts/lib/Map";
+import { chain, filter, fold, fromNullable, map as mapO, Option, some, alt } from "fp-ts/lib/Option";
+import { pipe } from "fp-ts/lib/pipeable";
+import { eqString } from "fp-ts/lib/Eq";
 import { Q, QElement } from "../dom/q";
 import { eqOrd, eqSetoid } from "./instances";
 import { invoke1 } from "./invoke";
@@ -29,9 +29,12 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
     const mapI = getTraversableWithIndex(eqOrd<QElement>());
     map.map(CachedElements.allCaches, (cache: CachedElements) =>
       mapI.reduceWithIndex(cache.cache, cache.cache, (oldEl: QElement, acc: Map<QElement, HasElement>, value: HasElement) =>
-        some(other).filter((x: Q) => CachedElements.elementIdSelector(oldEl).fold(false, x.matches))
-          .orElse(() => CachedElements.elementIdSelector(oldEl).chain(other.one))
-          .fold(acc, (newEl: Q) => f(acc, Q.of(oldEl), newEl, value))));
+        pipe(
+          some(other),
+          filter((x: Q) => fold(() => false, x.matches)(CachedElements.elementIdSelector(oldEl))),
+          alt(() => chain(other.one)(CachedElements.elementIdSelector(oldEl))),
+          fold(() => acc, (newEl: Q) => f(acc, Q.of(oldEl), newEl, value))
+        )));
   }
 
   static addCachedElements(added: Q): void {
@@ -66,11 +69,11 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
   }
 
   static elementIdSelector(el: Q | QElement): Option<string> {
-    return CachedElements.elementId(el).map((x: string) => `#${x}`);
+    return mapO((x: string) => `#${x}`)(CachedElements.elementId(el));
   }
 
   private static addCache(name: string, cache: CachedElements): void {
-    CachedElements._allCaches = insert(setoidString)(name, cache, CachedElements.allCaches);
+    CachedElements._allCaches = insertAt(eqString)(name, cache)(CachedElements.allCaches);
   }
 
   constructor(name: string, selector: string, ctor: new (element: Q<E>) => A) {
@@ -84,11 +87,16 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
   get cache(): Map<QElement, A> { return this._cache; }
 
   cacheElement(e: Q<E>): void {
-    apply((a: A) => this._cache = insert(qElSetoid)(a.getElement().element, a, this.cache))(new this.ctor(e));
+    const apply = (a: A) => this._cache = insertAt(qElSetoid)(a.getElement().element, a)(this.cache);
+    apply(new this.ctor(e));
   }
 
   maybeCacheElement(e: Q<E>): void {
-    some(e).filter(invoke1("matches")(this.selector)).map(this.cacheElement);
+    pipe(
+      some(e),
+      filter(invoke1("matches")(this.selector)),
+      mapO(this.cacheElement)
+    );
   }
 
   cacheElementsIn(root: Q): void {
@@ -100,7 +108,6 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
   }
 
   get(elOrId: Q | string): Option<A> {
-    return (Q.isQ(elOrId) ? some(elOrId) : Q.one(`#${CachedElements.normalizeId(elOrId)}`))
-      .chain((e: Q) => fromNullable(this.cache.get(e.element)));
+    return chain((e: Q) => fromNullable(this.cache.get(e.element)))(Q.isQ(elOrId) ? some(elOrId) : Q.one(`#${CachedElements.normalizeId(elOrId)}`));
   }
 }
