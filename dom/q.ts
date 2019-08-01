@@ -214,8 +214,10 @@ export class QListeners {
       : [
         QListeners.rootCache,
         [element.element, eventName],
-        (e: Ev) => apply((t: Q<E>) => selectorOrListener(<QEv1>(
-          new ctor(e, t, t, QListeners.originationElement(e, mkQ)))))(QListeners.thisElement(e, mkQ, element))
+        (e: Ev) => {
+          const t = QListeners.thisElement(e, mkQ, element);
+          selectorOrListener(<QEv1>(new ctor(e, t, t, QListeners.originationElement(e, mkQ))));
+        }
       ];
 
     const [stream, addedListener, allListeners] = addQListener(element.element, eventName,
