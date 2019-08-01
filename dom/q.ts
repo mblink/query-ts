@@ -4,10 +4,10 @@ import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
 import { apply, constVoid, not } from "fp-ts/lib/function";
 import { pipe } from "fp-ts/lib/pipeable";
-import { HKT, Type, Type2, Type3, URIS, URIS2, URIS3 } from "fp-ts/lib/HKT";
+import { HKT, Kind2, Kind3, URIS, URIS2, URIS3, Kind } from "fp-ts/lib/HKT";
 import { IORef } from "fp-ts/lib/IORef";
 import { mapIO } from "fp-ts/lib/IO";
-import { insert, lookup, toArray } from "fp-ts/lib/Map";
+import { insertAt, lookup, toArray } from "fp-ts/lib/Map";
 import {
   fromNullable,
   getOrElse,
@@ -29,7 +29,7 @@ import { Bondlink } from "../bondlink";
 import { AttrProxy } from "../util/attrProxy";
 import { CachedElements } from "../util/cachedElements";
 import { eq } from "../util/eq";
-import { eqOrd, eqEq } from "../util/instances";
+import { eqOrd, eqSetoid } from "../util/instances";
 import * as invoke from "../util/invoke";
 import { Log } from "../util/log";
 import { parseNumber } from "../util/parseNumber";
@@ -281,7 +281,7 @@ export class QListeners {
   private static getStream(m: DelegateCache, ks: [QElement, string, string]): Option<StreamAndListeners<unknown>>;
   private static getStream(_m: IORef<Map<unknown, unknown>>, _ks: unknown[]): Option<unknown> {
     const go = (ks: unknown[]) => (m: Map<any, any>): Option<unknown> =>
-      ks.length === 0 ? some(m) : chain(go(ks.slice(1)))(lookup(eqEq<unknown>())(ks[0], m));
+      ks.length === 0 ? some(m) : chain(go(ks.slice(1)))(lookup(eqSetoid<unknown>())(ks[0], m));
 
     return mapIO(go(_ks))(_m.read).run();
   }
@@ -294,9 +294,9 @@ export class QListeners {
         return v;
       } else {
         const k = ks[0];
-        return insert(eqEq<unknown>())(k, go(ks.slice(1))(
+        return insertAt(eqSetoid<unknown>())(k, go(ks.slice(1))(
           pipe(
-            lookup<unknown>(eqEq())(k, m),
+            lookup<unknown>(eqSetoid())(k, m),
             filter(QListeners.isMap),
             getOrElse(() => new Map()))), m);
       }
@@ -393,9 +393,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   }
 
 
-  static not<F extends URIS3>(F: Filterable3<F>): (selector: string) => <U, L, E extends QElement>(elements: Type3<F, U, L, Q<E>>) => Type3<F, U, L, Q<E>>;
-  static not<F extends URIS2>(F: Filterable2<F>): (selector: string) => <L, E extends QElement>(elements: Type2<F, L, E>) => Type2<F, L, Q<E>>;
-  static not<F extends URIS>(F: Filterable1<F>): (selector: string) => <E extends QElement>(elements: Type<F, Q<E>>) => Type<F, Q<E>>;
+  static not<F extends URIS3>(F: Filterable3<F>): (selector: string) => <U, L, E extends QElement>(elements: Kind3<F, U, L, Q<E>>) => Kind3<F, U, L, Q<E>>;
+  static not<F extends URIS2>(F: Filterable2<F>): (selector: string) => <L, E extends QElement>(elements: Kind2<F, L, E>) => Kind2<F, L, Q<E>>;
+  static not<F extends URIS>(F: Filterable1<F>): (selector: string) => <E extends QElement>(elements: Kind<F, Q<E>>) => Kind<F, Q<E>>;
   static not<F>(F: Filterable<F>): (selector: string) => <E extends QElement>(elements: HKT<F, Q<E>>) => HKT<F, Q<E>> {
     return (selector: string) => <E_ extends QElement>(elements: HKT<F, Q<E_>>) => F.filter(elements, invoke.invoke1("matches")(selector));
   }
