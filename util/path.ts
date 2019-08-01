@@ -1,5 +1,6 @@
-import { Option, some } from "fp-ts/lib/Option";
+import { Option, some, chain } from "fp-ts/lib/Option";
 import { lookup } from "fp-ts/lib/Record";
+import { pipe } from "fp-ts/lib/pipeable";
 
 type PK = PropertyKey;
 type R<K extends PK, V> = Record<K, V>;
@@ -29,7 +30,7 @@ export function path<K extends PK, A>(ks: K[]): (a: A) => any {
 // export function pathO<K1 extends PK, K2 extends PK, K3 extends PK, K4 extends PK, K5 extends PK, K6 extends PK, K7 extends PK, K8 extends PK, K9 extends PK, K10 extends PK>([k1, k2, k3, k4, k5, k6, k7, k8, k9, k10]: [K1, K2, K3, K4, K5, K6, K7, K8, K9, K10]): <A extends RO<K1, RO<K2, RO<K3, RO<K4, RO<K5, RO<K6, RO<K7, RO<K8, RO<K9, RO<K10, any>>>>>>>>>>>(a: A) => Option<A[K1][K2][K3][K4][K5][K6][K7][K8][K9][K10]>;
 export function pathO<K extends PK, A>(ks: K[]): (a: A) => Option<any> {
   return (a: A) => ks.reduce((reduced: Option<R<K, any>>, k: K) =>
-    reduced.chain((r: R<K, any>) => lookup(k.toString(), r)), some(a));
+    pipe(reduced, chain((r: R<K, any>) => lookup(k.toString(), r))), some(a));
 }
 
 export function mkDeepObj(ks: string[]): (v: any) => Record<string, any>;
