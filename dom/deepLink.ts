@@ -89,7 +89,7 @@ export class DataTable extends DeepLinkType {
                   // TODO - support calling actions on elements
                   Log.info("Calling action on element", actionEl);
                 })(row.one(`td[data-action="${a}"]:not([data-action="delete"])`))
-              )(lookup("action", m).filter(not(eq("delete"))));
+              )(pipe(lookup("action", m), filter(not(eq("delete")))));
             })(Q.one(`#${id}`)))
             .catch(() => Log.warn("DeepLink", "Row never became visible"));
         })
