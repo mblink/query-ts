@@ -1,5 +1,5 @@
-import {Option, tryCatch} from "fp-ts/lib/Option";
+import { filter, Option, tryCatch } from "fp-ts/lib/Option";
 
 export const parseNumber = (x: any): Option<number> =>
   // tslint:disable-next-line:no-unsafe-any
-  tryCatch(() => parseInt(x)).filter((n: number) => !isNaN(n));
+  filter((n: number) => !isNaN(n))(tryCatch(() => parseInt(x)));
