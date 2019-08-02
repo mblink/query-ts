@@ -298,7 +298,7 @@ export class QListeners {
           pipe(
             lookup<unknown>(eqSetoid())(k, m),
             filter(QListeners.isMap),
-            getOrElse(() => new Map()))));
+            getOrElse(() => new Map()))))(m);
       }
     };
 
