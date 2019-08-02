@@ -1,6 +1,7 @@
 import autobind from "autobind-decorator";
-import { getTraversableWithIndex, insertAt, map } from "fp-ts/lib/Map";
+import { insertAt, map as mapM, toArray } from "fp-ts/lib/Map";
 import { chain, filter, fold, fromNullable, map as mapO, Option, some, alt } from "fp-ts/lib/Option";
+import { reduce,  } from "fp-ts/lib/Array";
 import { pipe } from "fp-ts/lib/pipeable";
 import { eqString } from "fp-ts/lib/Eq";
 import { Q, QElement } from "../dom/q";
@@ -25,23 +26,28 @@ export class CachedElements<E extends QElement = QElement, A extends HasElement<
 
   static get allCaches(): Map<string, CachedElements> { return CachedElements._allCaches; }
 
+
   static modifyCachedElements(other: Q, f: (cache: Map<QElement, HasElement>, oldEl: Q, newEl: Q, value: HasElement) => Map<QElement, HasElement>): void {
-    const mapI = getTraversableWithIndex(eqOrd<QElement>());
-    map.map(CachedElements.allCaches, (cache: CachedElements) =>
-      mapI.reduceWithIndex(cache.cache, cache.cache, (oldEl: QElement, acc: Map<QElement, HasElement>, value: HasElement) =>
-        pipe(
+    const mapI = toArray(eqOrd<QElement>());
+    pipe(
+      CachedElements.allCaches,
+      mapM((m) => pipe(
+        mapI(m.cache),
+        (acc: [QElement, HasElement][]) => reduce(acc, (a: [QElement, HasElement][], kv: [QElement, HasElement]) => pipe(
           some(other),
-          filter((x: Q) => fold(() => false, x.matches)(CachedElements.elementIdSelector(oldEl))),
-          alt(() => chain(other.one)(CachedElements.elementIdSelector(oldEl))),
-          fold(() => acc, (newEl: Q) => f(acc, Q.of(oldEl), newEl, value))
-        )));
+          filter((x: Q) => fold(() => false, x.matches)(CachedElements.elementIdSelector(kv[0]))),
+          alt(() => chain(other.one)(CachedElements.elementIdSelector(kv[0]))),
+          fold(() => a, (newEl: Q) => Array.from(f(new Map(a), Q.of(kv[0]), newEl, kv[1]).entries()))
+        )
+      )))
+    );
   }
 
   static addCachedElements(added: Q): void {
-    map.map(CachedElements.allCaches, (cache: CachedElements) => {
+    mapM((cache: CachedElements) => {
       cache.maybeCacheElement(added);
       cache.cacheElementsIn(added);
-    });
+    })(CachedElements.allCaches);
   }
 
   static removeCachedElements(removed: Q): void {
