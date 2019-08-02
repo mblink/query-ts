@@ -8,5 +8,5 @@ export const eqOrd = <A>(): Ord<A> => merge(eqSetoid<A>())({ compare: unsafeComp
 
 
 function unsafeCompare(x: any, y: any): Ordering {
-  return x < y ? -1 : x > y ? 1 : 0;
+  return x < y ? -1 : x > y ? 1 : 0; // tslint:disable-line:no-unsafe-any
 }
