@@ -21,7 +21,7 @@ import {
   mapNullable, alt, isSome
 } from "fp-ts/lib/Option";
 import { Eq } from "fp-ts/lib/Eq";
-import { TaskEither, taskEither } from "fp-ts/lib/TaskEither";
+import { map as mapTE, TaskEither, taskEither } from "fp-ts/lib/TaskEither";
 import xs, { Listener, Producer, Stream } from "xstream";
 import { Bondlink } from "../bondlink";
 import { AttrProxy } from "../util/attrProxy";
@@ -490,7 +490,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   static parseFragment<E extends QElement = QElement>(fragment: UnsafeHtml, contentType: "text/html" | "image/svg+xml"): Option<Q<E>> {
     return pipe(
       Q.parseDocument(fragment, contentType),
-      chain((doc: Document) => contentType === "text/html" ? mapNullable(prop("firstChild"))(fromNullable(doc.body)) : fromNullable(doc.firstChild)),
+      chain((doc: Document) => contentType === "text/html" ? mapNullable<Node, ChildNode>(prop("firstChild"))(fromNullable(doc.body)) : fromNullable(doc.firstChild)),
       filter(Q.nodeIsElement),
       map((e: QElement) => Q.of(<E>e)));
   }
@@ -1105,7 +1105,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 
   reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
     return Do(taskEither)
-      .bind("text", pipe(fetchText(Bondlink.currentPath), map(prop(1))))
+      .bind("text", pipe(fetchText(Bondlink.currentPath), mapTE(prop(1))))
       .bindL("e", ({ text }: { text: string; }) => taskEither.of(
         pipe(
           Q.parseDocument(UnsafeHtml(text), "text/html"),
