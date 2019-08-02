@@ -145,8 +145,8 @@ export class DeepLink {
     return pipe(
       fromNullable(window.location.hash.slice(1).match(dlt.re)),
       filter((rm: RegExpMatchArray) => rm.length - 1 === dlt.reMatchNames.length),
-      map((rm: RegExpMatchArray) => fromFoldable(array)(
-        zip(dlt.reMatchNames, rm.slice(1, dlt.reMatchNames.length + 1)), getLastSemigroup<string>().concat)),
+      map((rm: RegExpMatchArray) => fromFoldable(getLastSemigroup<string>(), array)(
+        zip(dlt.reMatchNames, rm.slice(1, dlt.reMatchNames.length + 1)))),
       filter(dlt.match),
       map((m: { [k: string]: string }) => { dlt.process(m); return true; }),
       getOrElse(() => false)
@@ -185,7 +185,7 @@ export class DeepLink {
 
       removeCtxMenu();
       pipe(
-        findFirst(flow(prop(0), e.selectedElement.matches))(toArray(builders)),
+        findFirst(flow((a: [string, (e: Q) => string]) => a[0], e.selectedElement.matches))(toArray(builders)),
         map(([_, builder]: [string, (e: Q) => string]) => {
           const newMenu = DeepLink.ctxMenu(builder(e.selectedElement));
           menu = some(newMenu);
