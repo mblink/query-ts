@@ -2,11 +2,11 @@ import autobind from "autobind-decorator";
 import { Do } from "fp-ts-contrib/lib/Do";
 import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
-import { constVoid, not } from "fp-ts/lib/function";
+import { constVoid, not, flow } from "fp-ts/lib/function";
 import { pipe } from "fp-ts/lib/pipeable";
 import { HKT, Kind2, Kind3, URIS, URIS2, URIS3, Kind } from "fp-ts/lib/HKT";
 import { IORef } from "fp-ts/lib/IORef";
-import { insertAt, lookup, toArray, map as mapM } from "fp-ts/lib/Map";
+import { insertAt, lookup, toArray } from "fp-ts/lib/Map";
 import {
   fromNullable,
   getOrElse,
@@ -15,7 +15,6 @@ import {
   some,
   tryCatch as tryCatchO,
   chain,
-  ap,
   map,
   fold,
   filter,
@@ -166,7 +165,7 @@ const qListenerProducer = <Ev extends Event>(element: QElement, eventName: strin
 const addQListener = (element: QElement, eventName: string, uc: boolean) => <Ev extends Event>(next: (e: Ev) => void) => (streamO: Option<StreamAndListeners<unknown>>): [Stream<Ev>, Listener<Ev>, Listener<Ev>[]] => {
   const [stream, listeners] = pipe(
     (<Option<StreamAndListeners<Ev>>>streamO),
-    getOrElse(() => [xs.create(qListenerProducer(element, eventName, uc)), []]));
+    getOrElse(() => [xs.create(qListenerProducer<Ev>(element, eventName, uc)), [] as Listener<Ev>[]]));
   const listener: Listener<Ev> = {
     next,
     error: (e: any) => Log.error(`Error occurred in ${eventName} event stream`, e),
@@ -299,7 +298,7 @@ export class QListeners {
           pipe(
             lookup<unknown>(eqSetoid())(k, m),
             filter(QListeners.isMap),
-            getOrElse(() => new Map()))), m);
+            getOrElse(() => new Map()))));
       }
     };
 
@@ -425,7 +424,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * Check if a node is an element
    * @param element The node to check
    */
-  static nodeIsElement = (element: Node): element is QElement => element.nodeType === Node.ELEMENT_NODE;
+  static nodeIsElement = <E extends QElement = QElement>(element: Node): element is E => element.nodeType === Node.ELEMENT_NODE;
 
   static mutationElements(mutations: MutationRecord[]): Q[] {
     return flatten(mutations.map((m: MutationRecord) => (<Node[]>[].slice.call(m.addedNodes)
@@ -478,7 +477,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     children: Q[]
   ): Q<HTMLElementTagNameMap[T]> {
     const el = <HTMLElementTagNameMap[T]>document.createElement(tpe);
-    children.forEach(pipe(prop("element"), el.appendChild.bind(el)));
+    children.forEach(flow(prop("element"), el.appendChild.bind(el)));
     return fns.reduce((acc: Q<HTMLElementTagNameMap[T]>, f: (e: Q<HTMLElementTagNameMap[T]>) => Q<HTMLElementTagNameMap[T]>) => f(acc), Q.of(el));
   }
 
@@ -1106,7 +1105,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 
   reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
     return Do(taskEither)
-      .bind("text", map(prop(1))(fetchText(Bondlink.currentPath)))
+      .bind("text", pipe(fetchText(Bondlink.currentPath), map(prop(1))))
       .bindL("e", ({ text }: { text: string; }) => taskEither.of(
         pipe(
           Q.parseDocument(UnsafeHtml(text), "text/html"),
