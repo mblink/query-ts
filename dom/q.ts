@@ -872,7 +872,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
         fold(
         // Last ditch effort if the element doesn't have a parent
         () => { this.setOuterHtml(other.getOuterHtml()); },
-        (p: Q) => () => p.element.replaceChild(other.element, this.element)));
+        (p: Q) => p.element.replaceChild(other.element, this.element)));
     }
     CachedElements.replaceCachedElements(other);
     return this;
