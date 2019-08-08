@@ -915,12 +915,16 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   /**
    * Toggle classes on the current element
    */
-  toggleClass(klasses: string | string[], addOrRemove?: boolean): this {
-    if (typeof addOrRemove === "boolean") {
-      addOrRemove ? this.addClass(klasses) : this.removeClass(klasses);
-    } else {
-      wrapArr(klasses).forEach((c: string) => this.element.classList.toggle(c));
-    }
+  toggleClass(klasses: string | string[]): this {
+    wrapArr(klasses).forEach((c: string) => this.element.classList.toggle(c));
+    return this;
+  }
+
+  /**
+   * Add or remove classes on the current element
+   */
+  addOrRemoveClass(klasses: string | string[], addOrRemove: boolean): this {
+    addOrRemove ? this.addClass(klasses) : this.removeClass(klasses);
     return this;
   }
 
