@@ -435,7 +435,10 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     return new Promise((resolve: () => void, reject: () => void) => {
       let retries = 1;
       let interval: Option<number> = none;
-      const cancel = (cb: () => void) => { map(cancelAnimFrame)(interval); cb(); };
+      const cancel = (cb: () => void) => {
+        map(cancelAnimFrame)(interval);
+        cb();
+      };
 
       const retry = () => {
         if (cond()) {
@@ -476,7 +479,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     fns: ((e: Q<HTMLElementTagNameMap[T]>) => Q<HTMLElementTagNameMap[T]>)[],
     children: Q[]
   ): Q<HTMLElementTagNameMap[T]> {
-    const el = <HTMLElementTagNameMap[T]>document.createElement(tpe);
+    const el: HTMLElementTagNameMap[T] = document.createElement(tpe);
     children.forEach(flow(prop("element"), el.appendChild.bind(el)));
     return fns.reduce((acc: Q<HTMLElementTagNameMap[T]>, f: (e: Q<HTMLElementTagNameMap[T]>) => Q<HTMLElementTagNameMap[T]>) => f(acc), Q.of(el));
   }

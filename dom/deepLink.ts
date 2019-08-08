@@ -148,7 +148,10 @@ export class DeepLink {
       map((rm: RegExpMatchArray) => fromFoldable(getLastSemigroup<string>(), array)(
         zip(dlt.reMatchNames, rm.slice(1, dlt.reMatchNames.length + 1)))),
       filter(dlt.match),
-      map((m: { [k: string]: string }) => { dlt.process(m); return true; }),
+      map((m: { [k: string]: string }) => {
+        dlt.process(m);
+        return true;
+      }),
       getOrElse(() => false)
     );
   }

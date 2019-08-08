@@ -2,6 +2,8 @@ import { Option, some, chain } from "fp-ts/lib/Option";
 import { lookup } from "fp-ts/lib/Record";
 import { pipe } from "fp-ts/lib/pipeable";
 
+// tslint:disable:no-commented-code
+
 type PK = PropertyKey;
 type R<K extends PK, V> = Record<K, V>;
 // type RO<K extends PK, V> = Partial<Record<K, V>>;
