@@ -35,6 +35,7 @@ import { prop } from "../util/prop";
 import { cancelAnimFrame, requestAnimFrame } from "../util/requestAnimFrame";
 import { wrapArr } from "../util/wrapArr";
 import { UnsafeHtml } from "./unsafeHtml";
+import { fetchText } from "../fetch";
 
 export type QElement = HTMLElement | SVGElement;
 
@@ -1112,7 +1113,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 
   reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
     return Do(taskEither)
-      .bind("text", pipe(fetchText(Bondlink.currentPath), mapTE(prop(1))))
+      .bind<"text", string, Option<Response>>("text", pipe(fetchText(Bondlink.currentPath), mapTE(prop(1))))
       .bindL("e", ({ text }: { text: string; }) => taskEither.of(
         pipe(
           Q.parseDocument(UnsafeHtml(text), "text/html"),
