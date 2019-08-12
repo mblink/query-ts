@@ -28,7 +28,7 @@ const fetchTpe = <A>(f: (r: Response) => Promise<A>) => (url: string, opts?: Req
 
 export const fetchText = fetchTpe(invoke0("text"));
 
-export const fetchJson = <A>(tpe: iots.Type<A>) => (url: string, opts?: RequestInit): FetchJsonResp<A> =>
+export const fetchJson = <A, O, I>(tpe: iots.Type<A, O, I>) => (url: string, opts?: RequestInit): FetchJsonResp<iots.TypeOf<iots.Type<A, O, I>>> =>
   chain(([res, s]: [Response, string]) => pipe(
     fromEither(parseJson(tpe)(s)),
     mapLeft(constant(some(res))),
