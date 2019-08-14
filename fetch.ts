@@ -11,9 +11,11 @@ import { prop } from "./util/prop";
 import { Either, fold as foldE, left, right } from "fp-ts/lib/Either";
 import { task } from "fp-ts/lib/Task";
 
+export type RespOrErrors = Either<Option<Response>, iots.Errors>;
+
 export type FetchResp = TaskEither<Option<Response>, Response>;
 export type FetchTextResp = TaskEither<Option<Response>, [Response, string]>;
-export type FetchJsonResp<A> = TaskEither<Either<Option<Response>, iots.Errors>, [Response, A]>;
+export type FetchJsonResp<A> = TaskEither<RespOrErrors, [Response, A]>;
 
 const headers = mergeDeep({ headers: { "X-Requested-With": "XMLHttpRequest" } });
 const credentials = mergeDeep({ credentials: "same-origin" });
