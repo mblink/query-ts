@@ -1113,7 +1113,7 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
 
   reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
     return Do(taskEither)
-      .bind<"text", string, Option<Response>>("text", pipe(fetchText(Bondlink.currentPath), mapTE(prop(1))))
+      .bind<"text", string, Option<Response>>("text", pipe(fetchText({url: Bondlink.currentPath, method: "GET"}), mapTE(prop(1))))
       .bindL("e", ({ text }: { text: string; }) => taskEither.of(
         pipe(
           Q.parseDocument(UnsafeHtml(text), "text/html"),
