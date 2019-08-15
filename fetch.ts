@@ -10,6 +10,7 @@ import { prop } from "./util/prop";
 import { Either, fold as foldE, left, right } from "fp-ts/lib/Either";
 import { task } from "fp-ts/lib/Task";
 import { Log } from "./util/log";
+import { Method, UrlInterface } from "./routes/urlInterface";
 
 export type RespOrErrors = Either<Option<Response>, iots.Errors>;
 
@@ -24,21 +25,28 @@ const checkStatus = fromPredicate(prop("ok"), some);
 
 const origFetch = window.fetch;
 
-export const blFetch = (url: string, opts?: RequestInit): FetchResp =>
-  chain(checkStatus)(tryCatch(() => origFetch(url, headers(credentials(opts || {}))), (e: unknown) => {
-    Log.error("BLFetch Failed", e);
-    return none;
-  }));
+export const blFetch = (url: UrlInterface<Method>, opts?: RequestInit): FetchResp =>
+  chain(checkStatus)(tryCatch(
+    () => origFetch(url.url, headers(credentials(Object.assign(opts || {}, {method: url.method})))),
+    (e: unknown) => {
+      Log.error("BLFetch Failed", e);
+      return none;
+    }
+  ));
 
-const fetchTpe = (f: (r: Response) => Promise<string>) => (url: string, opts?: RequestInit): FetchTextResp =>
-  chain((res: Response) => map((a: string): [Response, string] => [res, a])(tryCatch(() => f(res), (e: unknown) => {
-    Log.error("FetchTpe Failed", e);
-    return some(res);
-  })))(blFetch(url, opts));
+const fetchTpe = (f: (r: Response) => Promise<string>) => (url: UrlInterface<Method>, opts?: RequestInit): FetchTextResp =>
+  chain((res: Response) =>
+    map((a: string): [Response, string] => [res, a])(tryCatch(
+      () => f(res),
+      (e: unknown) => {
+        Log.error("FetchTpe Failed", e);
+        return some(res);
+      })
+    ))(blFetch(url, opts));
 
 export const fetchText = fetchTpe(invoke0("text"));
 
-export const fetchJson = <A, O, I>(tpe: iots.Type<A, O, I>) => (url: string, opts?: RequestInit): FetchJsonResp<iots.TypeOf<iots.Type<A, O, I>>> =>
+export const fetchJson = <A, O, I>(tpe: iots.Type<A, O, I>) => (url: UrlInterface<"GET">, opts?: RequestInit): FetchJsonResp<iots.TypeOf<iots.Type<A, O, I>>> =>
   pipe(
     fetchText(url, opts),
     foldTE(
@@ -53,9 +61,8 @@ export const fetchJson = <A, O, I>(tpe: iots.Type<A, O, I>) => (url: string, opt
     )
   );
 
-export const postJson = (data: unknown) => (url: string, opts?: RequestInit): FetchResp =>
+export const postJson = (data: unknown) => (url: UrlInterface<"POST">, opts?: RequestInit): FetchResp =>
   blFetch(url, mergeDeep({
-    method: "POST",
     cache: "no-cache",
     body: JSON.stringify(data),
     headers: {
