@@ -19,6 +19,7 @@ import { task } from "fp-ts/lib/Task";
 import { Log } from "./util/log";
 import { Method, UrlInterface } from "./routes/urlInterface";
 import { tap } from "./util/tap";
+import { Unauthorized } from "ts-http-status-codes";
 
 export type RespOrErrors = Either<Option<Response>, t.Errors>;
 
@@ -41,7 +42,9 @@ export const blFetch = (url: UrlInterface<Method>, opts?: RequestInit): FetchRes
       }
     ),
     chainTE(checkStatus),
-    mapLeftTE(map(tap((r: Response) => Log.error(`BLFetch Failed With Status: ${r.status} -- ${r.statusText}`, r))))
+    mapLeftTE(map(tap((r: Response) =>
+      (r.status === Unauthorized ? Log.info : Log.error)(`BLFetch Failed With Status: ${r.status} -- ${r.statusText}`, r)
+    )))
   );
 
 const fetchTpe = (f: (r: Response) => Promise<string>) => (url: UrlInterface<Method>, opts?: RequestInit): FetchTextResp =>
