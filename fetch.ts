@@ -91,4 +91,12 @@ export const postJsonUnsafe = (data: unknown) => (url: UrlInterface<"POST">, opt
     }
   })(opts || {}));
 
-
+export const deleteJsonUnsafe = (data: unknown) => (url: UrlInterface<"DELETE">, opts?: RequestInit): FetchTextResp =>
+  fetchText(url, mergeDeep({
+    cache: "no-cache",
+    body: JSON.stringify(data),
+    headers: {
+      "Csrf-Token": Bondlink.config.csrf,
+      "Content-Type": "application/json"
+    }
+  })(opts || {}));
