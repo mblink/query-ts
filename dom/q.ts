@@ -937,6 +937,13 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   }
 
   /**
+   * Get the id of the current element if its not empty
+   */
+  getId(): Option<string> {
+    return filter(not(eq("")))(some(this.element.id));
+  }
+
+  /**
    * Add an id to the current element
    * @param id
    */
