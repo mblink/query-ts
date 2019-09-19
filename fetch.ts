@@ -81,17 +81,7 @@ export const fetchJson = <A, O, I>(tpe: t.Type<A, O, I>) => (url: UrlInterface<"
     textToJsonResp(tpe)
   );
 
-export const postJsonUnsafe = (data: unknown) => (url: UrlInterface<"POST">, opts?: RequestInit): FetchTextResp =>
-  fetchText(url, mergeDeep({
-    cache: "no-cache",
-    body: JSON.stringify(data),
-    headers: {
-      "Csrf-Token": Bondlink.config.csrf,
-      "Content-Type": "application/json"
-    }
-  })(opts || {}));
-
-export const deleteJsonUnsafe = (data: unknown) => (url: UrlInterface<"DELETE">, opts?: RequestInit): FetchTextResp =>
+export const fetchJsonUnsafe = (data: unknown) => (url: UrlInterface<"POST" | "DELETE">, opts?: RequestInit): FetchTextResp =>
   fetchText(url, mergeDeep({
     cache: "no-cache",
     body: JSON.stringify(data),
