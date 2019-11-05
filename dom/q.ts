@@ -1086,3 +1086,9 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
     return (node: Node) => fromNullable(fn(node)).chain((n: Node) => Q.nodeIsElement(n) ? some(Q.of(n)) : this.getSibling(fn)(n));
   }
 }
+
+function fixSafariClick(): void {
+  Q.one(".page-container")
+    .getOrElseL(() => tap(Q.body.append)(Q.createElement("div", [invoke.invoke1("addClass")("ios-safari-fix")], Q.body.children())))
+    .listen("click", constVoid);
+}
