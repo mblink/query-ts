@@ -1,4 +1,4 @@
-import escapeHtml from "escape-html";
+import * as escapeHtml from "escape-html";
 import { flatten, last, zip } from "fp-ts/lib/Array";
 import { flow } from "fp-ts/lib/function";
 import { pipe } from "fp-ts/lib/pipeable";
