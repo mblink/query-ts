@@ -1,0 +1,38 @@
+{
+  "name": "query-ts",
+  "version": "0.9.1",
+  "description": "A jQuery like library based on XStream and FP-TS.",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mblink/query-ts.git"
+  },
+  "keywords": [
+    "jQuery",
+    "FP-TS",
+    "XStream",
+    "TypeScript",
+    "TS",
+    "DOM",
+    "selector"
+  ],
+  "author": "jleider",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/mblink/query-ts/issues"
+  },
+  "homepage": "https://github.com/mblink/query-ts#readme",
+  "devDependencies": {
+    "@types/escape-html": "~0.0.20",
+    "autobind-decorator": "~2.4.0",
+    "escape-html": "~1.0.3",
+    "fp-ts": "~2.6.1",
+    "ts-http-status-codes": "~1.0.1",
+    "tslint": "~6.1.2",
+    "typescript": "~3.9.2",
+    "xstream": "^11.11.0"
+  }
+}
