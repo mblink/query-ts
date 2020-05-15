@@ -684,7 +684,8 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
    * @param value A well-typed value for the given CSS property
    */
   setInlineStyle<K extends keyof CSSStyleDeclaration>(key: K, value: CSSStyleDeclaration[K]): this {
-    this.setInlineStyles({ [key]: value });
+    // Casting requirement a possible TS 3.9 bug -- https://github.com/microsoft/TypeScript/issues/37587
+    this.setInlineStyles({ [key]: value } as unknown as Partial<CSSStyleDeclaration>);
     return this;
   }
 
