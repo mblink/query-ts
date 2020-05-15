@@ -1,5 +1,4 @@
 import autobind from "autobind-decorator";
-import { Do } from "fp-ts-contrib/lib/Do";
 import { flatten } from "fp-ts/lib/Array";
 import { Filterable, Filterable1, Filterable2, Filterable3 } from "fp-ts/lib/Filterable";
 import { constVoid, not, flow } from "fp-ts/lib/function";
@@ -21,25 +20,21 @@ import {
   mapNullable, alt, isSome
 } from "fp-ts/lib/Option";
 import { Eq } from "fp-ts/lib/Eq";
-import { map as mapTE, TaskEither, taskEither } from "fp-ts/lib/TaskEither";
 import xs, { Listener, Producer, Stream } from "xstream";
-import { Bondlink } from "../bondlink";
 import { AttrProxy } from "../util/attrProxy";
 import { CachedElements } from "../util/cachedElements";
 import { eq } from "../util/eq";
 import { eqOrd, eqSetoid } from "../util/instances";
 import * as invoke from "../util/invoke";
-import { Log } from "../util/log";
 import { parseNumber } from "../util/parseNumber";
 import { prop } from "../util/prop";
 import { cancelAnimFrame, requestAnimFrame } from "../util/requestAnimFrame";
 import { wrapArr } from "../util/wrapArr";
 import { UnsafeHtml } from "./unsafeHtml";
-import { fetchText } from "../fetch";
 
 export type QElement = HTMLElement | SVGElement;
 
-let [readyFired, readyEventsBound, readyFns]: [boolean, boolean, (() => void)[]] = [false, false, []];
+let [readyFired, readyEventsBound, readyFns]: [boolean, boolean, (() => void)[]] = [false, false, [fixSafariClick]];
 
 const docReady = () => document.readyState === "complete";
 
@@ -169,8 +164,8 @@ const addQListener = (element: QElement, eventName: string, uc: boolean) => <Ev 
     getOrElse(() => [xs.create(qListenerProducer<Ev>(element, eventName, uc)), [] as Listener<Ev>[]]));
   const listener: Listener<Ev> = {
     next,
-    error: (e: any) => Log.error(`Error occurred in ${eventName} event stream`, e),
-    complete: () => Log.info(`Stream completed for ${eventName} event`)
+    error: (e: any) => console.error(`Error occurred in ${eventName} event stream`, e),
+    complete: () => console.info(`Stream completed for ${eventName} event`)
   };
   stream.addListener(listener);
   return [stream, listener, listeners.concat([listener])];
@@ -1116,17 +1111,6 @@ export class Q<E extends QElement = QElement> extends AttrProxy<E> {
   reflow(): this {
     this.element.getClientRects();
     return this;
-  }
-
-  reload(this: Q<HTMLElement>): TaskEither<unknown, Q<HTMLElement>> {
-    return Do(taskEither)
-      .bind<"text", string, Option<Response>>("text", pipe(fetchText({url: Bondlink.currentPath, method: "GET"}), mapTE(prop(1))))
-      .bindL("e", ({ text }: { text: string; }) => taskEither.of(
-        pipe(
-          Q.parseDocument(UnsafeHtml(text), "text/html"),
-          chain((doc: Document) => map(this.replaceWith)(Q.oneF(doc, `#${this.getAttr("id")}`))),
-          getOrElse(() => this))))
-      .return(prop("e"));
   }
 
   private constructor(element: E, prev: Option<Q>) {
