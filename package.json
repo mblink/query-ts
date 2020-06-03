@@ -28,7 +28,7 @@
   "bugs": {
     "url": "https://github.com/mblink/query-ts/issues"
   },
-  "homepage": "https://github.com/mblink/query-ts#readme",
+  "homepage": "https://github.com/mblink/query-ts",
   "devDependencies": {
     "@types/escape-html": "~0.0.20",
     "autobind-decorator": "~2.4.0",
