@@ -1,16 +1,9 @@
 {
-  "extends": [
-    "../tslint.json",
-    "tslint-sonarts"
-  ],
   "rules": {
-    "autobind-class": true,
-    "cognitive-complexity": [true, 30],
     "deprecation": true,
     "no-big-function": false,
     "no-boolean-literal-compare": true,
     "no-duplicate-string": false,
-    "no-ignored-return": true,
     "no-inferred-empty-object-type": true,
     "no-nested-template-literals": false,
     "no-object-literal-type-assertion": true,
