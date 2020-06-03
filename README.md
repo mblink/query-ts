@@ -1,7 +1,9 @@
 # query-ts
 A jQuery like library based on XStream and FP-TS 2.x.
 
-`npm install query-ts`
+```
+npm install query-ts
+```
 
 Sample usage:
 
