@@ -164,8 +164,8 @@ const addQListener = (element: QElement, eventName: string, uc: boolean) => <Ev 
     getOrElse(() => [xs.create(qListenerProducer<Ev>(element, eventName, uc)), [] as Listener<Ev>[]]));
   const listener: Listener<Ev> = {
     next,
-    error: (e: any) => console.error(`Error occurred in ${eventName} event stream`, e),
-    complete: () => console.info(`Stream completed for ${eventName} event`)
+    error: (e: any) => console.error(`Error occurred in ${eventName} event stream`, e), // tslint:disable-line no-console
+    complete: () => console.info(`Stream completed for ${eventName} event`) // tslint:disable-line no-console
   };
   stream.addListener(listener);
   return [stream, listener, listeners.concat([listener])];
