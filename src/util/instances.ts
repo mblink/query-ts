@@ -1,9 +1,9 @@
 import { Ord } from "fp-ts/lib/Ord";
-import { Eq, strictEqual } from "fp-ts/lib/Eq";
+import { Eq, eqStrict } from "fp-ts/lib/Eq";
 import { merge } from "./merge";
 import { Ordering } from "fp-ts/lib/Ordering";
 
-export const eqSetoid = <A>(): Eq<A> => ({ equals: strictEqual });
+export const eqSetoid = <A>(): Eq<A> => eqStrict;
 export const eqOrd = <A>(): Ord<A> => merge(eqSetoid<A>())({ compare: unsafeCompare });
 
 
