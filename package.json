@@ -2,12 +2,17 @@
   "name": "query-ts",
   "version": "0.9.1",
   "description": "A jQuery like library based on XStream and FP-TS.",
-  "main": "dist/index.js",
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "scripts": {
-    "build": "npm run clean; npm run lint; npm run compile",
+    "build": "npm run clean && npm run lint && npm run compile",
     "clean": "rm -rf lib/",
-    "compile": "node_modules/.bin/tsc -p tsconfig.json",
-    "lint": "node_modules/.bin/tslint -p tsconfig.json",
+    "compile": "tsc -p tsconfig.json",
+    "lint": "tslint -p tsconfig.json",
+    "prepublish": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
