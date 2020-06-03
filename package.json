@@ -37,14 +37,20 @@
     "url": "https://github.com/mblink/query-ts/issues"
   },
   "homepage": "https://github.com/mblink/query-ts",
+  "dependencies": {
+    "escape-html": "~1.0.3",
+    "ts-http-status-codes": "~1.0.1"
+  },
   "devDependencies": {
     "@types/escape-html": "~0.0.20",
     "autobind-decorator": "~2.4.0",
-    "escape-html": "~1.0.3",
-    "fp-ts": "~2.6.1",
-    "ts-http-status-codes": "~1.0.1",
+    "fp-ts": "^2.6.1",
     "tslint": "~6.1.2",
     "typescript": "~3.9.2",
+    "xstream": "^11.11.0"
+  },
+  "peerDependencies": {
+    "fp-ts": "^2.6.1",
     "xstream": "^11.11.0"
   }
 }
