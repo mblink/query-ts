@@ -1,6 +1,6 @@
 {
   "name": "query-ts",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "A jQuery like library based on XStream and FP-TS.",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
