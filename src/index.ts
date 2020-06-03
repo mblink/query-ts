@@ -1,1 +1,1 @@
-export * as Q from "./dom/q";
+export * from "./dom/q";
