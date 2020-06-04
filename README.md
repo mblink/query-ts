@@ -9,7 +9,7 @@ Sample usage:
 
 ```typescript
 // Get a single element from the dom and map over the Option
-import {Q, QElement, UnsafeHtml} from "query-ts/";
+import {Q, QElement, UnsafeHtml} from "query-ts";
 import {pipe} from "fp-ts/lib/pipeable"
 import {Option, filter, map, getOrElse} from "fp-ts/lib/Option";
 
