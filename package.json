@@ -12,6 +12,7 @@
     "clean": "rm -rf lib/",
     "compile": "tsc -p tsconfig.json",
     "lint": "tslint -p tsconfig.json",
+    "postpublish" : "PACKAGE_VERSION=$(cat package.json | grep \\\"version\\\" | head -1 | awk -F: '{ print $2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]') && git tag v$PACKAGE_VERSION && git push --tags",
     "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
